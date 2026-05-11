@@ -9,9 +9,17 @@
 5. **If you break the build, fix it or revert within 30 minutes.** Don't leave others blocked.
 6. **No secrets in commits.** Squad keys, API key, JWT secrets all live in `.env.local` (gitignored).
 
-The rest of this doc explains why and how.
-
 ---
+
+## For the frontend. First install all dependencies. after cloning
+```bash
+  cd Desktop
+  git clone https://github.com/PetJs/Eri.git
+  cd Eri
+  cd frontend
+  npm install
+  npm run dev
+```
 
 ## Who owns what
 
