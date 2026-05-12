@@ -45,7 +45,10 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 
 GREENBOOK_BASE_URL = "https://greenbook.nafdac.gov.ng"
-GREENBOOK_TIMEOUT_S = 8.0  # NAFDAC is sometimes slow; 8s is the demo-friendly limit
+# Total budget for the live API attempt. If we don't have an answer in this
+# many seconds, fall back to seed. Tight on purpose: a slow lookup is worse
+# than a fast fallback during a live demo.
+GREENBOOK_TIMEOUT_S = 5.0
 CACHE_TTL_S = 3600  # 1 hour — Greenbook data updates rarely
 
 
@@ -142,12 +145,12 @@ _SEED_DATA: dict[str, dict[str, Any]] = {
     # If you want to seed with a real NAFDAC number from the Greenbook,
     # search "Coartem" there and update this. The number below is a plausible
     # format; replace with the real one when you confirm it.
-    "04-3275": {
+    "04-9412": {
         "product_name": "Coartem 20/120 mg tablets",
         "manufacturer": "Novartis Pharmaceuticals",
         "active_ingredient": "Artemether/Lumefantrine",
         "product_category": "Drugs",
-        "status": "Inactive",
+        "status": "Active",
         "approval_date": "2022-06-15",
         "expiry_date": "2027-06-14",
     },
@@ -292,7 +295,13 @@ def _parse_row(row: dict[str, Any], nafdac_number: str) -> NafdacRecord:
 
 
 async def _query_live(nafdac_number: str) -> NafdacRecord | None:
-    """Query the live Greenbook. Returns None on any failure."""
+    """Query the live Greenbook. Returns None on any failure.
+
+    We hit the DataTables endpoint directly with a single GET. Skipping the
+    homepage warm-up keeps the worst-case latency under our timeout budget;
+    the endpoint accepts unauthenticated GETs (Laravel only enforces CSRF on
+    POSTs).
+    """
     try:
         async with httpx.AsyncClient(
             timeout=GREENBOOK_TIMEOUT_S,
@@ -308,10 +317,6 @@ async def _query_live(nafdac_number: str) -> NafdacRecord | None:
                 "Referer": f"{GREENBOOK_BASE_URL}/",
             },
         ) as client:
-            # Step 1: visit homepage to establish session cookies
-            await client.get(f"{GREENBOOK_BASE_URL}/")
-
-            # Step 2: query the DataTables endpoint
             response = await client.get(
                 f"{GREENBOOK_BASE_URL}/",
                 params=_build_query_params(nafdac_number),
