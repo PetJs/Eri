@@ -128,18 +128,23 @@ async def verify_supplier(payload: SupplierVerifyRequest) -> SupplierTrustRespon
 
 
 # -----------------------------------------------------------------------------
-# Delivery verification — STUB. Replaced by Engine 2 when built.
+# Delivery verification — REAL implementation via Engine 2
 # -----------------------------------------------------------------------------
 
 @router.post(
     "/delivery/{order_id}",
     response_model=DeliveryVerifyResponse,
-    summary="Verify a delivered product matches the order (STUB)",
+    summary="Verify a delivered product matches the order",
     description=(
-        "**STUB** — Engine 2 (Product CV) is not yet built. This route "
-        "currently returns a hardcoded 'green' response so the frontend can "
-        "wire up the delivery verification UI. Will be replaced by a real "
-        "CLIP + OCR + LLM pipeline when Engine 2 lands."
+        "Runs the buyer's two photos (originally quoted product + what actually "
+        "arrived) through Engine 2, which performs:\n\n"
+        "1. **OCR** — Tesseract reads the NAFDAC number off the delivered package "
+        "(falls back to Gemini vision OCR if Tesseract returns gibberish)\n"
+        "2. **NAFDAC cross-check** — verifies the package's number against the "
+        "live Greenbook, and checks it matches what was ordered\n"
+        "3. **Visual adjudication** — Gemini multimodal compares the two product "
+        "photos and looks for brand, dosage, and packaging differences\n\n"
+        "Returns a weighted verdict in the same shape as the supplier verification."
     ),
 )
 async def verify_delivery(
@@ -148,42 +153,38 @@ async def verify_delivery(
     delivery_image: UploadFile = File(..., description="Photo of what was actually delivered"),
     expected_nafdac: str | None = Form(default=None),
     expected_manufacturer: str | None = Form(default=None),
+    expected_product: str | None = Form(default=None),
 ) -> DeliveryVerifyResponse:
-    # STUB: just read the files to validate they were uploaded, but don't
-    # actually analyze them. Engine 2 will do the real work.
-    _ = await quote_image.read()
-    _ = await delivery_image.read()
-
     if not order_id:
         raise HTTPException(status_code=400, detail="order_id is required")
 
-    # Return a believable mock so the frontend can test happy + sad paths.
-    # Frontend can vary the response by suffixing order_id with '-fail':
-    if order_id.endswith("-fail"):
-        return DeliveryVerifyResponse(
-            order_id=order_id,
-            verdict="red",
-            match_confidence=0.12,
-            delivered_brand="Unknown",
-            delivered_dosage=None,
-            delivered_nafdac=None,
-            differences=[
-                "Delivered packaging does not match quoted product brand",
-                "NAFDAC number on package differs from order",
-            ],
-            concerns=[
-                "Likely counterfeit — do not release escrow",
-                "Recommend raising a dispute",
-            ],
+    quote_bytes = await quote_image.read()
+    delivery_bytes = await delivery_image.read()
+
+    if not quote_bytes or not delivery_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="Both quote_image and delivery_image must be non-empty",
         )
+
+    from app.engines.product_cv import DeliveryInput, verify_delivery as engine_verify_delivery
+
+    verdict = await engine_verify_delivery(DeliveryInput(
+        order_id=order_id,
+        quote_image_bytes=quote_bytes,
+        delivery_image_bytes=delivery_bytes,
+        expected_product_name=expected_product,
+        expected_manufacturer=expected_manufacturer,
+        expected_nafdac_number=expected_nafdac,
+    ))
 
     return DeliveryVerifyResponse(
         order_id=order_id,
-        verdict="green",
-        match_confidence=0.94,
-        delivered_brand=expected_manufacturer or "Novartis",
-        delivered_dosage="20/120 mg",
-        delivered_nafdac=expected_nafdac or "04-9412",
-        differences=[],
-        concerns=[],
+        verdict=verdict.verdict,
+        match_confidence=verdict.llm_match_confidence or 0.0,
+        delivered_brand=verdict.detected_brand,
+        delivered_dosage=verdict.detected_dosage,
+        delivered_nafdac=verdict.detected_nafdac_number,
+        differences=[],  # Embedded in concerns for now
+        concerns=verdict.raw_concerns,
     )
