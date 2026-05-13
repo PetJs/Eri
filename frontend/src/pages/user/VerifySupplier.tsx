@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 
 const industryOptions = [
   "Healthcare", "Agriculture", "Manufacturing", "Technology",
