@@ -128,35 +128,66 @@ def test_verify_supplier_general_skips_nafdac(client):
 # Delivery verification — STUB
 # -----------------------------------------------------------------------------
 
-def test_verify_delivery_stub_returns_green(client):
-    """Default stub behavior — returns green/match."""
+def test_verify_delivery_endpoint_responds(client, monkeypatch):
+    """The delivery endpoint should accept image uploads and return a verdict.
+
+    We don't hit the real Gemini API in this test — that's covered by
+    test_product_cv.py. Here we just verify the routing + schema layer.
+    """
+    # Force the engine's LLM client to a stub so we don't need GEMINI_API_KEY
+    from app.engines import product_cv as engine_module
+
+    class _StubLLM:
+        def extract_registration_number(self, *a, **kw):
+            return None
+        def adjudicate_products(self, *a, **kw):
+            return {
+                "match": True,
+                "confidence": 0.9,
+                "delivered_name": "Coartem",
+                "delivered_variant": "20/120 mg",
+                "delivered_registration": "04-9412",
+                "differences": [],
+                "concerns": [],
+            }
+
+    monkeypatch.setattr(engine_module, "_get_llm_client", lambda: _StubLLM())
+
+    # Generate a real small image for upload
+    from PIL import Image
+    import io
+    img = Image.new("RGB", (100, 100), "white")
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    img_bytes = buf.getvalue()
+
     r = client.post(
-        "/verify/delivery/ord_test_123",
+        "/verify/delivery/ord_test_real",
         files={
-            "quote_image": ("quote.jpg", b"fake_image_bytes", "image/jpeg"),
-            "delivery_image": ("delivery.jpg", b"fake_image_bytes", "image/jpeg"),
+            "quote_image": ("quote.png", img_bytes, "image/png"),
+            "delivery_image": ("delivery.png", img_bytes, "image/png"),
         },
+        data={
+            "expected_nafdac": "04-9412",
+            "expected_manufacturer": "Novartis",
+            "expected_product": "Coartem",
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["order_id"] == "ord_test_real"
+    assert body["verdict"] in {"green", "amber", "red"}
+    assert "concerns" in body
+
+
+def test_verify_delivery_rejects_missing_images(client):
+    """Empty upload should 422 (validation) or 400 (our explicit check)."""
+    r = client.post(
+        "/verify/delivery/ord_test",
+        # Don't include any files
         data={"expected_nafdac": "04-9412"},
     )
-    assert r.status_code == 200
-    body = r.json()
-    assert body["verdict"] == "green"
-    assert body["match_confidence"] > 0.5
-
-
-def test_verify_delivery_stub_returns_red_for_fail_suffix(client):
-    """Frontend can suffix '-fail' to test the failure UI."""
-    r = client.post(
-        "/verify/delivery/ord_test-fail",
-        files={
-            "quote_image": ("quote.jpg", b"fake", "image/jpeg"),
-            "delivery_image": ("delivery.jpg", b"fake", "image/jpeg"),
-        },
-    )
-    assert r.status_code == 200
-    body = r.json()
-    assert body["verdict"] == "red"
-    assert len(body["concerns"]) > 0
+    assert r.status_code in {400, 422}
 
 
 # -----------------------------------------------------------------------------
