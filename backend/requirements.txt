@@ -11,3 +11,5 @@ numpy
 pandas
 google-genai
 python-multipart
+respx>=0.21.0
+email-validator
