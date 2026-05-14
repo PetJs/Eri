@@ -240,15 +240,24 @@ async def resolve_account(
     bank: str,
     use_cache: bool = True,
     simulate_latency: bool = True,
+    prefer_live: bool = True,
 ) -> ResolvedAccount:
     """Resolve a Nigerian bank account number to its registered name.
+
+    Strategy:
+        1. Try the live Squad account-lookup API (real BEC defense)
+        2. If Squad fails or doesn't know the account, fall back to seeded
+           data (covers our fictional demo suppliers)
+        3. Cache successful lookups in-memory
 
     Args:
         account_number: 10-digit Nigerian NUBAN account number
         bank: either the bank's code ('058') or its name ('GTBank' / 'gtb')
         use_cache: return cached result if available
-        simulate_latency: add a small sleep so the mock feels realistic.
-            Disable in tests.
+        simulate_latency: add a small sleep when neither Squad nor seed
+            takes meaningful time, so the demo's checklist animates nicely
+        prefer_live: try Squad first. Set to False in tests or when you
+            want deterministic seed-only behavior.
     """
     account_number = _normalize_account(account_number)
     bank_code = _resolve_bank_code(bank)
@@ -278,6 +287,31 @@ async def resolve_account(
         if cached is not None:
             return ResolvedAccount(**{**cached.__dict__, "source": "cache"})
 
+    # --- Step 1: try Squad's live account-lookup API ---
+    # We do this BEFORE consulting the seed for any real-looking account so
+    # we get authentic data when available. For our fictional demo accounts
+    # (MedTrust, QuickMeds, etc.) Squad will return "not found" and we fall
+    # through to the seed.
+    if prefer_live:
+        from app.integrations.squad import get_squad_client
+        squad = get_squad_client()
+        if squad is not None:
+            squad_result = await squad.resolve_account(account_number, bank_code)
+            if squad_result.found and squad_result.account_name:
+                result = ResolvedAccount(
+                    found=True,
+                    account_number=account_number,
+                    account_name=squad_result.account_name,
+                    bank_code=bank_code,
+                    bank_name=NIGERIAN_BANK_CODES.get(bank_code),
+                    source="squad",
+                )
+                if use_cache:
+                    _cache.set(cache_key, result)
+                return result
+            # Squad responded but doesn't know this account — fall through to seed.
+
+    # --- Step 2: seed fallback (for fictional demo accounts) ---
     if simulate_latency:
         await asyncio.sleep(LOOKUP_LATENCY_MS / 1000.0)
 
