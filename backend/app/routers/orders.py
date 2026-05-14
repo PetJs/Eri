@@ -16,6 +16,7 @@ For now, all writes mutate the in-memory _ORDERS dict.
 """
 from __future__ import annotations
 
+import logging
 import random
 import string
 from datetime import datetime, timedelta, timezone
@@ -23,7 +24,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from app.schemas.order import (
+from app.schemas.orders import (
     CreateOrderRequest,
     DisputeOrderRequest,
     OrderActionResponse,
@@ -31,6 +32,8 @@ from app.schemas.order import (
     OrderStatus,
     ReleaseOrderRequest,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -52,21 +55,33 @@ _KNOWN_SUPPLIERS: dict[str, dict[str, str]] = {
         "name": "MedTrust Nigeria Limited",
         "verdict": "green",
         "score": "100",
+        "account_number": "0123456789",
+        "bank_code": "058",
+        "account_name": "MEDTRUST NIGERIA LIMITED",
     },
     "sup_lagospharma": {
         "name": "Lagos Pharma Distributors",
         "verdict": "amber",
         "score": "64",
+        "account_number": "3001234567",
+        "bank_code": "044",
+        "account_name": "OLUMIDE ADEYEMI",
     },
     "sup_quickmeds": {
         "name": "QuickMeds Wholesale",
         "verdict": "red",
         "score": "15",
+        "account_number": "9988776655",
+        "bank_code": "058",
+        "account_name": "AZURITE LOGISTICS NIGERIA",
     },
     "sup_pharmaplus": {
         "name": "PharmaPlus Solutions Limited",
         "verdict": "green",
         "score": "95",
+        "account_number": "2105887301",
+        "bank_code": "058",
+        "account_name": "PHARMAPLUS SOLUTIONS LIMITED",
     },
 }
 
@@ -89,12 +104,16 @@ def _generate_virtual_account() -> str:
     "",
     response_model=OrderResponse,
     status_code=201,
-    summary="Create an escrow order (STUB)",
+    summary="Create an escrow order with a real Squad virtual NUBAN",
     description=(
-        "**STUB** — In production, this calls Squad's Virtual Account API to "
-        "provision a unique 10-digit NUBAN for the buyer to transfer into. "
-        "Currently returns a mock virtual account number and stores the order "
-        "in memory."
+        "Provisions a real virtual GTBank account via Squad's Dynamic Virtual "
+        "Account API. The buyer transfers the exact order amount to this NUBAN "
+        "from their bank app; Squad fires a webhook to `/webhooks/squad` when "
+        "funds land, which flips the order from `pending_payment` to `funded`.\n\n"
+        "If Squad's DVA pool is empty, the backend auto-refills and retries "
+        "before failing. If Squad is unavailable entirely, the route falls "
+        "back to a locally-generated account number so the demo continues "
+        "(the order status flow still works via `/admin/demo/simulate-payment`)."
     ),
 )
 async def create_order(payload: CreateOrderRequest) -> OrderResponse:
@@ -106,6 +125,55 @@ async def create_order(payload: CreateOrderRequest) -> OrderResponse:
     order_id = _generate_id("ord")
     now = datetime.now(timezone.utc)
 
+    # --- Provision a real virtual account via Squad DVA ---
+    # The transaction_ref must be unique per Squad call. We use the order_id
+    # directly — it's already unique and lets us correlate webhook events
+    # back to the order later.
+    virtual_account_number: str
+    virtual_account_name: str
+    virtual_account_bank: str
+    squad_transaction_ref: str = order_id
+
+    try:
+        from app.integrations.squad import get_squad_client
+        squad = get_squad_client()
+        if squad is None:
+            # No Squad keys configured — fall back to a local mock account.
+            # This keeps the demo working even on machines without env vars set.
+            logger.warning("Squad client unavailable; using mock virtual account")
+            virtual_account_number = _generate_virtual_account()
+            virtual_account_name = "Eri Escrow / Demo Buyer"
+            virtual_account_bank = "Guaranty Trust Bank"
+        else:
+            dva = await squad.initiate_dynamic_va(
+                amount_kobo=payload.amount_ngn * 100,
+                transaction_ref=squad_transaction_ref,
+                email=payload.buyer_email,
+                duration_seconds=3600 * 24,  # 24-hour window for buyer to pay
+            )
+            if dva.success and dva.account_number:
+                virtual_account_number = dva.account_number
+                virtual_account_name = dva.account_name or "Eri Escrow"
+                virtual_account_bank = dva.bank or "Guaranty Trust Bank"
+                if dva.refilled_pool:
+                    logger.info("DVA pool auto-refilled for order %s", order_id)
+            else:
+                # Squad call failed — fall back to mock so the order still
+                # appears on the buyer's screen. Demo continues; the simulate
+                # endpoint can still flip the status to funded for stage demos.
+                logger.warning(
+                    "Squad DVA failed for order %s: %s. Falling back to mock account.",
+                    order_id, dva.error,
+                )
+                virtual_account_number = _generate_virtual_account()
+                virtual_account_name = "Eri Escrow / Demo Buyer"
+                virtual_account_bank = "Guaranty Trust Bank"
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Unexpected Squad DVA error for order %s: %s", order_id, exc)
+        virtual_account_number = _generate_virtual_account()
+        virtual_account_name = "Eri Escrow / Demo Buyer"
+        virtual_account_bank = "Guaranty Trust Bank"
+
     order_dict = {
         "id": order_id,
         "status": "pending_payment",
@@ -113,11 +181,13 @@ async def create_order(payload: CreateOrderRequest) -> OrderResponse:
         "supplier_name": supplier["name"],
         "amount_ngn": payload.amount_ngn,
         "description": payload.description,
+        "buyer_email": payload.buyer_email,
         "created_at": now,
         "expected_delivery_by": now + timedelta(days=payload.expected_delivery_days),
-        "virtual_account_number": _generate_virtual_account(),
-        "virtual_account_name": "Eri Escrow / Demo Buyer",
-        "virtual_account_bank": "Guaranty Trust Bank",
+        "virtual_account_number": virtual_account_number,
+        "virtual_account_name": virtual_account_name,
+        "virtual_account_bank": virtual_account_bank,
+        "squad_transaction_ref": squad_transaction_ref,
         "trust_score_at_creation": int(supplier["score"]),
         "trust_verdict_at_creation": supplier["verdict"],
     }
@@ -149,11 +219,14 @@ async def get_order(order_id: str) -> OrderResponse:
 @router.post(
     "/{order_id}/release",
     response_model=OrderActionResponse,
-    summary="Release escrow to supplier (STUB)",
+    summary="Release escrow to supplier via Squad Transfer API",
     description=(
-        "**STUB** — In production, this calls Squad's Transfer API to move "
-        "funds from the escrow account to the supplier's resolved bank account. "
-        "Currently just updates the in-memory order status."
+        "Releases escrow funds to the supplier's resolved bank account using "
+        "Squad's Transfer API. In sandbox, the transfer is simulated (no real "
+        "money moves) but the API responds with a real transaction reference "
+        "and the order is marked released.\n\n"
+        "If Squad is unavailable, the route still flips the order to released "
+        "but logs the failure — useful for demo continuity."
     ),
 )
 async def release_order(
@@ -161,7 +234,13 @@ async def release_order(
 ) -> OrderActionResponse:
     order = _ORDERS.get(order_id)
     if order is None:
-        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+        # Allow releasing canned demo orders for the live demo
+        canned = _canned_order(order_id)
+        if canned is None:
+            raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+        # Promote the canned order into the in-memory store so we can mutate it
+        order = dict(canned)
+        _ORDERS[order_id] = order
 
     if order["status"] not in {"funded", "delivered_pending"}:
         raise HTTPException(
@@ -169,11 +248,59 @@ async def release_order(
             detail=f"Cannot release order in status '{order['status']}'",
         )
 
+    # Try to call Squad's Transfer API for real
+    transfer_message: str
+    try:
+        from app.integrations.squad import get_squad_client
+        squad = get_squad_client()
+        if squad is None:
+            transfer_message = (
+                f"Released ₦{order['amount_ngn']:,} to {order['supplier_name']} "
+                f"(Squad unavailable — recorded locally)"
+            )
+        else:
+            # Look up which account to pay. The order stub doesn't carry this,
+            # so we use the supplier's known account from _KNOWN_SUPPLIERS. In
+            # production this would come from the supplier's profile.
+            supplier_info = _KNOWN_SUPPLIERS.get(order["supplier_id"], {})
+            recipient_account = supplier_info.get("account_number", "0123456789")
+            recipient_bank = supplier_info.get("bank_code", "058")
+            recipient_name = supplier_info.get(
+                "account_name", order["supplier_name"]
+            )
+
+            transfer = await squad.initiate_transfer(
+                amount_kobo=order["amount_ngn"] * 100,
+                bank_code=recipient_bank,
+                account_number=recipient_account,
+                account_name=recipient_name,
+                narration=f"Eri escrow release {order_id}",
+                remark=payload.confirmation_note or "Escrow released by buyer",
+            )
+
+            if transfer.success:
+                order["squad_transfer_ref"] = transfer.transaction_ref
+                transfer_message = (
+                    f"Transferred ₦{order['amount_ngn']:,} to "
+                    f"{order['supplier_name']} (Squad ref: {transfer.transaction_ref})"
+                )
+            else:
+                transfer_message = (
+                    f"Released ₦{order['amount_ngn']:,} to {order['supplier_name']} "
+                    f"(Squad transfer reported: {transfer.error or 'unknown error'})"
+                )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Squad release failed: %s", exc)
+        transfer_message = (
+            f"Released ₦{order['amount_ngn']:,} to {order['supplier_name']} "
+            f"(Squad call failed — recorded locally)"
+        )
+
     order["status"] = "released"
     return OrderActionResponse(
         order_id=order_id,
         new_status="released",
-        message=f"Released ₦{order['amount_ngn']:,} to {order['supplier_name']}",
+        message=transfer_message,
     )
 
 
