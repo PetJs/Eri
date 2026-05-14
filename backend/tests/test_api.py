@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from app.integrations import bank, cac, court_records, nafdac
 from app.main import app
+from app.settings import settings
 
 
 @pytest.fixture
@@ -22,11 +23,12 @@ def client():
 
 
 @pytest.fixture(autouse=True)
-def _clear_all_caches():
+def _clear_all_caches(monkeypatch):
     bank.clear_cache()
     cac.clear_cache()
     court_records.clear_cache()
     nafdac.clear_cache()
+    monkeypatch.setattr(settings, "squad_webhook_secret", "")
     yield
     bank.clear_cache()
     cac.clear_cache()
@@ -199,6 +201,7 @@ def test_create_order_returns_virtual_account(client):
         "/orders",
         json={
             "supplier_id": "sup_medtrust",
+            "buyer_email": "demo@eri.app",
             "amount_ngn": 1_250_000,
             "description": "50 cartons of Coartem 20/120 tablets",
         },
@@ -217,6 +220,7 @@ def test_get_order_returns_created_order(client):
         "/orders",
         json={
             "supplier_id": "sup_medtrust",
+            "buyer_email": "demo@eri.app",
             "amount_ngn": 500_000,
             "description": "Test order",
         },
@@ -250,6 +254,7 @@ def test_release_order_requires_funded_status(client):
         "/orders",
         json={
             "supplier_id": "sup_medtrust",
+            "buyer_email": "demo@eri.app",
             "amount_ngn": 100_000,
             "description": "Test",
         },
@@ -266,6 +271,7 @@ def test_dispute_order_requires_funded_status(client):
         "/orders",
         json={
             "supplier_id": "sup_medtrust",
+            "buyer_email": "demo@eri.app",
             "amount_ngn": 100_000,
             "description": "Test",
         },
