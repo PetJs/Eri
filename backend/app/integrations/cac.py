@@ -431,6 +431,18 @@ async def lookup_cac(
         if cached is not None:
             return CacRecord(**{**cached.__dict__, "source": "cache"})
 
+    # Seed-first for any RC we've explicitly curated for the demo.
+    # Demo suppliers (MedTrust, PharmaPlus, Lagos Pharma, QuickMeds gotcha)
+    # use fictional RC numbers that won't be found by live CAC. Hitting live
+    # for those would either return nothing or surface unrelated entities.
+    # Real RC numbers (like MTN's 395010) are not in the seed and flow
+    # normally through the live path.
+    if _SEED_DATA.get(cache_key) is not None:
+        seed_result = _query_seed(rc_number)
+        if use_cache:
+            _cache.set(cache_key, seed_result)
+        return seed_result
+
     if prefer_live:
         live_result = await _query_live(business_name, rc_number)
         if live_result is not None:
@@ -441,7 +453,6 @@ async def lookup_cac(
             if live_result.found:
                 return live_result
             # Live responded but didn't find the RC — fall through to seed
-            # in case our demo data has it.
 
     seed_result = _query_seed(rc_number)
     if use_cache:

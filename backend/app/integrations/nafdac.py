@@ -411,21 +411,34 @@ async def lookup_nafdac(
     if use_cache:
         cached = _cache.get(nafdac_number)
         if cached is not None:
-            # Return a copy with source overridden so callers know it was cached
             cached_copy = NafdacRecord(**{**cached.__dict__, "source": "cache"})
             logger.debug("NAFDAC cache hit for %s", nafdac_number)
             return cached_copy
 
-    # Live query first if preferred
+    # Seed-first for any number we've explicitly curated.
+    # This is deliberate: for the demo, certain NAFDAC numbers must return
+    # specific predetermined records (the 04-6433 Proguanil gotcha is the
+    # canonical example). Hitting live for those numbers would either find
+    # nothing (they're fictional) or, worse, find real registrations that
+    # break the demo narrative. Numbers not in our seed flow through to the
+    # live API as expected.
+    if _SEED_DATA.get(nafdac_number.strip()) is not None:
+        seed_result = _query_seed(nafdac_number)
+        if use_cache:
+            _cache.set(nafdac_number, seed_result)
+        return seed_result
+
+    # For unseeded numbers, try live first when requested
     if prefer_live:
         live_result = await _query_live(nafdac_number)
         if live_result is not None:
             if use_cache and live_result.registered:
                 _cache.set(nafdac_number, live_result)
             return live_result
-        # Live failed — fall through to seed
+        # Live failed — fall through to seed (which will return not-found
+        # for unseeded numbers, but at least we've tried both paths)
 
-    # Seed lookup
+    # Final fallback — seed lookup (will return not-found for unseeded)
     seed_result = _query_seed(nafdac_number)
     if use_cache:
         _cache.set(nafdac_number, seed_result)
