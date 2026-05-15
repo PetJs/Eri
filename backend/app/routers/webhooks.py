@@ -80,6 +80,10 @@ async def squad_webhook(
         logger.warning("Squad webhook had unparseable body: %s", exc)
         return WebhookAckResponse(received=False, event="invalid_body")
 
+    # DEBUG: dump the full payload so we can see Squad's exact field names.
+    # Remove this log line once the schema is confirmed and the handler is fixed.
+    logger.info("Squad webhook RAW payload: %s", payload)
+
     event = payload.get("Event") or payload.get("event") or "unknown"
     data = payload.get("Data") or payload.get("data") or {}
     transaction_ref = data.get("transaction_ref") or data.get("transaction_reference")
