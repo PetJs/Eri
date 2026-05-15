@@ -1,41 +1,66 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowRight, CheckCircle2, Shield, FileText } from 'lucide-react'
+import { useOrder } from '../../api/orders'
 
-const statusStyle: Record<string, string> = {
-  RELEASED: 'bg-green-100 text-green-700',
-  'ON HOLD': 'bg-amber-100 text-amber-700',
-  FUNDED: 'bg-blue-100 text-blue-700',
-  BLOCKED: 'bg-red-100 text-red-700',
+const STATUS_LABEL: Record<string, string> = {
+  pending_payment: 'PENDING',
+  funded: 'FUNDED',
+  delivered_pending: 'DELIVERED',
+  released: 'RELEASED',
+  disputed: 'DISPUTED',
+  refunded: 'REFUNDED',
+  cancelled: 'CANCELLED',
 }
 
-const orders: Record<string, {
-  id: string; supplier: string; product: string; nafdac: string
-  manufacturer: string; quantity: string; amount: string; status: string; date: string
-}> = {
-  'ORD-882': {
-    id: 'ORD-882', supplier: 'MedTrust Nigeria', product: 'Coartem 20/120mg',
-    nafdac: '04-9412', manufacturer: 'Novartis', quantity: '100 boxes',
-    amount: '₦1,200,000', status: 'RELEASED', date: '14 May 2026',
-  },
-  'ORD-883': {
-    id: 'ORD-883', supplier: 'MedTrust Nigeria', product: 'Amoxicillin 500mg',
-    nafdac: '04-8821', manufacturer: 'Emzor', quantity: '200 packs',
-    amount: '₦1,200,000', status: 'ON HOLD', date: '13 May 2026',
-  },
+const STATUS_STYLE: Record<string, string> = {
+  pending_payment: 'bg-gray-100 text-gray-600',
+  funded: 'bg-blue-100 text-blue-700',
+  delivered_pending: 'bg-amber-100 text-amber-700',
+  released: 'bg-green-100 text-green-700',
+  disputed: 'bg-red-100 text-red-700',
+  refunded: 'bg-purple-100 text-purple-700',
+  cancelled: 'bg-gray-100 text-gray-500',
 }
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const order = orders[id ?? ''] ?? {
-    id: id ?? 'N/A', supplier: 'MedTrust Nigeria', product: 'Coartem 20/120mg',
-    nafdac: '04-9412', manufacturer: 'Novartis', quantity: '100 boxes',
-    amount: '₦1,200,000', status: 'RELEASED', date: '14 May 2026',
+  const { data: order, isLoading, error } = useOrder(id)
+
+  if (isLoading) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto flex items-center justify-center py-20">
+        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-3" />
+        <span className="text-sm text-gray-500">Loading order...</span>
+      </div>
+    )
   }
+
+  if (error || !order) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-center">
+          <p className="text-sm font-semibold text-red-800">Order not found</p>
+          <p className="text-xs text-red-600 mt-1">{error?.message ?? 'This order does not exist.'}</p>
+          <button
+            onClick={() => navigate('/orders')}
+            className="mt-3 text-xs text-blue-600 font-medium hover:underline"
+          >
+            Back to orders
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const statusLabel = STATUS_LABEL[order.status] ?? order.status.toUpperCase()
+  const statusClass = STATUS_STYLE[order.status] ?? 'bg-gray-100 text-gray-600'
+  const createdDate = new Date(order.created_at).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  })
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-4">
         <span onClick={() => navigate('/orders')} className="hover:text-gray-600 cursor-pointer">Orders</span>
         <span>›</span>
@@ -46,10 +71,10 @@ export default function OrderDetail() {
         <div>
           <h1 className="text-xl font-bold text-gray-900">Order {order.id}</h1>
           <div className="flex items-center gap-2 mt-1">
-            <span className={`px-2.5 py-0.5 rounded-full font-bold text-xs ${statusStyle[order.status]}`}>
-              {order.status}
+            <span className={`px-2.5 py-0.5 rounded-full font-bold text-xs ${statusClass}`}>
+              {statusLabel}
             </span>
-            <span className="text-xs text-gray-400">{order.date}</span>
+            <span className="text-xs text-gray-400">{createdDate}</span>
           </div>
         </div>
         <button
@@ -61,23 +86,28 @@ export default function OrderDetail() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Order details */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="font-semibold text-sm text-gray-700 mb-4">Order Details</h2>
           <div className="grid grid-cols-2 gap-x-8 gap-y-3">
             {[
-              { label: 'Supplier', val: order.supplier },
-              { label: 'Product', val: order.product },
-              { label: 'NAFDAC Number', val: order.nafdac },
-              { label: 'Manufacturer', val: order.manufacturer },
-              { label: 'Quantity', val: order.quantity },
-              { label: 'Total Amount', val: order.amount },
-            ].map(({ label, val }) => (
-              <div key={label}>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">{label}</p>
-                <p className="text-sm font-medium text-gray-800">{val}</p>
-              </div>
-            ))}
+              { label: 'Supplier', val: order.supplier_name },
+              { label: 'Description', val: order.description },
+              { label: 'Status', val: statusLabel },
+              { label: 'Total Amount', val: `₦${order.amount_ngn.toLocaleString()}` },
+              order.virtual_account_number
+                ? { label: 'Virtual Account', val: order.virtual_account_number }
+                : null,
+              order.expected_delivery_by
+                ? { label: 'Expected by', val: new Date(order.expected_delivery_by).toLocaleDateString('en-GB') }
+                : null,
+            ]
+              .filter((x): x is { label: string; val: string } => x !== null)
+              .map(({ label, val }) => (
+                <div key={label}>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">{label}</p>
+                  <p className="text-sm font-medium text-gray-800">{val}</p>
+                </div>
+              ))}
           </div>
 
           <div className="mt-5 flex items-center gap-3">
@@ -87,14 +117,15 @@ export default function OrderDetail() {
           </div>
         </div>
 
-        {/* Side info */}
         <div className="space-y-4">
           <div className="bg-white border border-gray-200 rounded-xl p-5">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Supplier</h3>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center text-white text-xs font-bold">MT</div>
+              <div className="w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                {order.supplier_name.slice(0, 2).toUpperCase()}
+              </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">{order.supplier}</p>
+                <p className="text-sm font-semibold text-gray-900">{order.supplier_name}</p>
                 <span className="text-[10px] text-green-600 font-semibold flex items-center gap-1">
                   <CheckCircle2 size={9} /> Verified Supplier
                 </span>
@@ -107,6 +138,16 @@ export default function OrderDetail() {
               View trust report
             </button>
           </div>
+
+          {order.trust_score_at_creation != null && (
+            <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+              <p className="text-xs text-gray-400 mb-1">Trust Score at Creation</p>
+              <p className="text-2xl font-bold text-gray-900">{order.trust_score_at_creation}</p>
+              {order.trust_verdict_at_creation && (
+                <p className="text-xs text-gray-500 mt-0.5 capitalize">{order.trust_verdict_at_creation}</p>
+              )}
+            </div>
+          )}
 
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
             <Shield size={16} className="text-green-600 mx-auto mb-2" />

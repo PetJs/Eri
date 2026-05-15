@@ -15,16 +15,11 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header label */}
-      <div className="absolute top-4 left-6 z-10">
-        <p className="text-xs text-gray-400 font-medium">Login</p>
-      </div>
-
       <div className="flex flex-1">
         {/* Left panel */}
         <div className="flex-1 bg-white flex flex-col">
           {/* Brand */}
-          <div className="px-10 pt-10">
+          <div className="p-4">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center">
                 <Shield size={12} className="text-white" />

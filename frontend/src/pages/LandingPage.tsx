@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Shield, Search, CheckCircle, ArrowRight, Globe, Share2 } from 'lucide-react'
+import { Shield, Search, CheckCircle, ArrowRight, Globe, Share2, Briefcase, Landmark } from 'lucide-react'
 import heroImg from '../assets/hero.png'
 
 const steps = [
@@ -16,6 +16,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
+
       {/* Nav */}
       <nav className="sticky top-0 z-50 bg-white border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center gap-8">
@@ -52,14 +53,16 @@ export default function LandingPage() {
       <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 flex flex-col md:flex-row items-center gap-12">
         <div className="flex-1 max-w-xl">
           <div className="inline-flex items-center gap-2 bg-gray-900 text-white text-[10px] font-semibold tracking-widest uppercase px-3 py-1.5 rounded-full mb-8">
-            <span className="w-1.5 h-1.5 bg-pink-400 rounded-full"></span>
+            <span className="w-1.5 h-1.5 bg-pink-400 rounded-full animate-pulse" />
             BUILT ON SQUAD · CHALLENGE 01: PROOF OF LIFE
           </div>
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-none mb-6 text-gray-900">
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-none mb-6">
             Trust before<br />you transfer.
           </h1>
           <p className="text-gray-500 text-lg leading-relaxed mb-10">
-            AI-gated escrow for Nigerian procurement. We secure high-stakes transactions by verifying identities and authenticating goods before releasing payments.
+            AI-gated escrow for Nigerian procurement. We secure high-stakes
+            transactions by verifying identities and authenticating goods before
+            releasing payments.
           </p>
           <div className="flex items-center gap-4">
             <button
@@ -85,17 +88,19 @@ export default function LandingPage() {
 
       {/* Stats */}
       <section className="bg-gray-50 border-y border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          {[
-            { value: '90%+', label: 'PROCUREMENT FRAUD RATE' },
-            { value: '₦3 trillion', label: 'ANNUAL TRANSACTION LOSS' },
-            { value: '13–50%', label: 'COUNTERFEIT DRUG PENETRATION' },
-          ].map(({ value, label }) => (
-            <div key={label}>
-              <p className="text-4xl font-bold text-gray-900 mb-2">{value}</p>
-              <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase">{label}</p>
-            </div>
-          ))}
+        <div className="max-w-6xl mx-auto px-6 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-200 text-center">
+            {[
+              { value: '90%+', label: 'PROCUREMENT FRAUD RATE' },
+              { value: '₦3 trillion', label: 'ANNUAL TRANSACTION LOSS' },
+              { value: '13–50%', label: 'COUNTERFEIT DRUG PENETRATION' },
+            ].map(({ value, label }) => (
+              <div key={label} className="py-6 md:py-0 md:px-8">
+                <p className="text-4xl font-bold text-gray-900 mb-2">{value}</p>
+                <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase">{label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -110,7 +115,7 @@ export default function LandingPage() {
             {
               icon: Shield,
               title: 'Supplier Verified',
-              desc: 'Real-time CAC, TIN, and bank account verification using Squad\'s deep data APIs.',
+              desc: "Real-time CAC, TIN, and bank account verification using Squad's deep data APIs.",
               active: false,
             },
             {
@@ -134,12 +139,10 @@ export default function LandingPage() {
                   : 'bg-white border-gray-200 text-gray-800'
               }`}
             >
-              <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center mb-5 ${
-                  active ? 'bg-white/20' : 'bg-gray-100'
-                }`}
-              >
-                <Icon size={20} className={active ? 'text-white' : 'text-gray-700'} />
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-5 ${
+                active ? 'bg-white/20' : 'bg-gray-100'
+              }`}>
+                <Icon size={20} className={active ? 'text-white' : 'text-gray-600'} />
               </div>
               <h3 className="font-semibold text-lg mb-2">{title}</h3>
               <p className={`text-sm leading-relaxed ${active ? 'text-blue-100' : 'text-gray-500'}`}>{desc}</p>
@@ -152,12 +155,12 @@ export default function LandingPage() {
       <section className="bg-gray-50 border-y border-gray-100 py-16">
         <div className="max-w-6xl mx-auto px-6">
           <h2 className="text-2xl font-bold text-center mb-12">How money moves through TrustLock</h2>
-          <div className="flex items-center justify-center gap-0 flex-wrap">
+          <div className="flex items-center justify-center flex-wrap gap-0">
             {steps.map((step, i) => (
               <div key={i} className="flex items-center">
                 <div className={`px-4 py-3 rounded-lg text-center min-w-[100px] ${
                   step.active
-                    ? 'bg-blue-600 text-white shadow-lg'
+                    ? 'bg-blue-600 text-white shadow-md'
                     : 'bg-white border border-gray-200 text-gray-600'
                 }`}>
                   <p className={`text-xs font-bold ${step.active ? 'text-white' : 'text-gray-800'}`}>{step.label}</p>
@@ -176,11 +179,13 @@ export default function LandingPage() {
 
       {/* Sectors */}
       <section id="healthcare" className="max-w-6xl mx-auto px-6 py-20">
-        <h2 className="text-2xl font-bold text-center mb-12">Built for Nigeria's most fraud-exposed sectors</h2>
+        <h2 className="text-2xl font-bold text-center mb-12">
+          Built for Nigeria's most fraud-exposed sectors
+        </h2>
         <div id="government" className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
             {
-              icon: '🏥',
+              icon: Briefcase,
               title: 'Healthcare procurement',
               points: [
                 'Verified pharmaceutical supply chains with NAFDAC tracking.',
@@ -189,7 +194,7 @@ export default function LandingPage() {
               ],
             },
             {
-              icon: '🏛️',
+              icon: Landmark,
               title: 'Government & corporate procurement',
               points: [
                 'Strict KYC/AML compliance via direct CAC portal integration.',
@@ -197,14 +202,16 @@ export default function LandingPage() {
                 'Milestone-based payouts for complex infrastructure projects.',
               ],
             },
-          ].map(({ icon, title, points }) => (
+          ].map(({ icon: Icon, title, points }) => (
             <div key={title} className="p-8 bg-white rounded-2xl border border-gray-200">
-              <div className="text-3xl mb-4">{icon}</div>
+              <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center mb-5">
+                <Icon size={20} className="text-gray-600" />
+              </div>
               <h3 className="font-semibold text-lg mb-4 text-gray-900">{title}</h3>
               <ul className="space-y-2">
                 {points.map((p) => (
                   <li key={p} className="flex items-start gap-2 text-sm text-gray-600">
-                    <CheckCircle size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
+                    <CheckCircle size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
                     {p}
                   </li>
                 ))}
@@ -219,7 +226,8 @@ export default function LandingPage() {
         <div className="max-w-2xl mx-auto px-6 py-20 text-center">
           <h2 className="text-3xl font-bold mb-3">Stop praying. Start verifying.</h2>
           <p className="text-gray-400 mb-8">
-            Modernize your procurement workflow with Nigeria's most secure escrow engine. Built on the resilience of Squad.
+            Modernize your procurement workflow with Nigeria's most secure escrow engine.
+            Built on the resilience of Squad.
           </p>
           <button
             onClick={() => navigate('/dashboard')}
@@ -242,23 +250,14 @@ export default function LandingPage() {
                 <span className="font-bold text-sm">TrustLock</span>
               </div>
               <div className="inline-flex items-center gap-1.5 bg-pink-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-white rounded-full" />
                 BUILT ON SQUAD
               </div>
             </div>
             {[
-              {
-                heading: 'PLATFORM',
-                links: ['How it works', 'Verification APIs', 'Pricing'],
-              },
-              {
-                heading: 'SECTORS',
-                links: ['Healthcare', 'Government', 'Construction'],
-              },
-              {
-                heading: 'LEGAL',
-                links: ['Terms of Service', 'Privacy Policy', 'Security Compliance'],
-              },
+              { heading: 'PLATFORM', links: ['How it works', 'Verification APIs', 'Pricing'] },
+              { heading: 'SECTORS', links: ['Healthcare', 'Government', 'Construction'] },
+              { heading: 'LEGAL', links: ['Terms of Service', 'Privacy Policy', 'Security Compliance'] },
             ].map(({ heading, links }) => (
               <div key={heading}>
                 <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mb-4">{heading}</p>
@@ -275,12 +274,13 @@ export default function LandingPage() {
           <div className="mt-10 pt-6 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-xs text-gray-400">© 2026 TrustLock. All rights reserved.</p>
             <div className="flex items-center gap-4">
-              <Globe size={14} className="text-gray-400" />
-              <Share2 size={14} className="text-gray-400" />
+              <Share2 size={14} className="text-gray-400 cursor-pointer hover:text-gray-600 transition-colors" />
+              <Globe size={14} className="text-gray-400 cursor-pointer hover:text-gray-600 transition-colors" />
             </div>
           </div>
         </div>
       </footer>
+
     </div>
   )
 }
