@@ -361,7 +361,6 @@ class SquadClient:
         payload: dict[str, Any] = {
             "amount": amount_naira_str,
             "transaction_ref": transaction_ref,
-            "currency_code": "NGN",
             "email": email,
             "duration": str(duration_seconds),
         }
