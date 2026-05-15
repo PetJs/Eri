@@ -1,13 +1,7 @@
-"""
-+Admin / observability endpoints.
-+
-+GET  /admin/metrics                  — REAL. Returns Engine 3's training metrics + cache stats.
-+POST /admin/demo/simulate-payment    — Demo helper: triggers Squad's sandbox payment simulation.
-+"""
-Admin / observability endpoints.
+"""Admin / observability endpoints.
 
-GET  /admin/metrics                  — REAL. Returns Engine 3's training metrics + cache stats.
-POST /admin/demo/simulate-payment    — Demo helper: flips an order from pending to funded.
+GET /admin/metrics - REAL. Returns Engine 3's training metrics + cache stats.
+POST /admin/demo/simulate-payment - Demo helper: triggers Squad's sandbox payment simulation.
 """
 from __future__ import annotations
 
