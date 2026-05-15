@@ -467,10 +467,12 @@ class SquadClient:
         url = f"{self._base_url}/virtual-account/simulate/payment"
         ref = transaction_reference or f"SIM-{uuid.uuid4().hex[:16].upper()}"
 
+        # The sandbox simulate endpoint does not accept arbitrary merchant
+        # metadata fields in its payload. Only include the documented
+        # parameters to avoid 400 responses from the sandbox.
         payload: dict[str, Any] = {
             "virtual_account_number": virtual_account_number.strip(),
             "amount": str(amount_ngn),
-            "merchant_reference": merchant_reference,
             "transaction_reference": ref,
         }
 

@@ -5,7 +5,10 @@ POST /admin/demo/simulate-payment - Demo helper: triggers Squad's sandbox paymen
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
