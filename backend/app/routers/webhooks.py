@@ -81,13 +81,26 @@ async def squad_webhook(
         return WebhookAckResponse(received=False, event="invalid_body")
 
     # DEBUG: dump the full payload so we can see Squad's exact field names.
-    # Remove this log line once the schema is confirmed and the handler is fixed.
+    # Remove this log line once the schema is confirmed in production.
     logger.info("Squad webhook RAW payload: %s", payload)
 
-    event = payload.get("Event") or payload.get("event") or "unknown"
-    data = payload.get("Data") or payload.get("data") or {}
-    transaction_ref = data.get("transaction_ref") or data.get("transaction_reference")
-    transaction_status = (data.get("transaction_status") or "").lower()
+    # Squad's webhook payload is FLAT (no nested Data). Field names:
+    #   - merchant_reference: our order_id (we passed this as transaction_ref to DVA initiate)
+    #   - transaction_reference: Squad's internal ID (not our order_id — don't correlate on this)
+    #   - transaction_status: "success" | "MISMATCH" | "failed" (case-varies)
+    #   - merchant_amount: amount the order expects (naira string)
+    #   - amount_received: amount actually paid (naira string)
+    #   - transaction_type: e.g. "dynamic_virtual_account"
+    order_ref = payload.get("merchant_reference")
+    raw_status = (payload.get("transaction_status") or "").lower()
+    transaction_type = payload.get("transaction_type", "")
+    amount_received = payload.get("amount_received")
+    merchant_amount = payload.get("merchant_amount")
+
+    # Treat transaction_status as our event indicator
+    event = raw_status or "unknown"
+    transaction_ref = order_ref
+    transaction_status = raw_status
 
     logger.info(
         "Squad webhook received: event=%s ref=%s status=%s",
@@ -102,24 +115,32 @@ async def squad_webhook(
         order = _ORDERS[transaction_ref]
 
         # Successful payment to a DVA → mark order funded
-        if "success" in transaction_status or event in {
-            "successful_transaction",
-            "transaction.success",
-        }:
+        if "success" in transaction_status:
             if order["status"] == "pending_payment":
                 order["status"] = "funded"
-                logger.info("Order %s flipped to funded via Squad webhook", transaction_ref)
+                order["funded_at"] = payload.get("date")
+                order["squad_transaction_ref"] = payload.get("transaction_reference")
+                logger.info(
+                    "Order %s flipped to funded via Squad webhook (received ₦%s)",
+                    transaction_ref, amount_received,
+                )
 
         # Mismatch (buyer paid wrong amount) → flag the order for review
-        elif "mismatch" in transaction_status or "mismatch" in event:
-            order.setdefault("flags", []).append("payment_amount_mismatch")
-            logger.warning("Order %s has amount mismatch", transaction_ref)
+        elif "mismatch" in transaction_status:
+            order.setdefault("flags", []).append(
+                f"payment_amount_mismatch (expected ₦{merchant_amount}, "
+                f"received ₦{amount_received})"
+            )
+            logger.warning(
+                "Order %s has amount mismatch: expected ₦%s, received ₦%s",
+                transaction_ref, merchant_amount, amount_received,
+            )
 
-        # Expired (buyer never paid in time) → cancel
-        elif "expired" in transaction_status or "expired" in event:
+        # Failed or expired
+        elif "fail" in transaction_status or "expired" in transaction_status:
             if order["status"] == "pending_payment":
                 order["status"] = "cancelled"
-                logger.info("Order %s expired without payment", transaction_ref)
+                logger.info("Order %s cancelled (status=%s)", transaction_ref, transaction_status)
     else:
         logger.info(
             "Squad webhook ref=%s does not match any known order (ignored)",
