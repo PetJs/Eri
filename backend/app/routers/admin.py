@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from app.engines.anomaly import DEFAULT_MODEL_PATH, AnomalyEngine
 from app.integrations import bank, cac, court_records, nafdac
-from app.routers.orders import _ORDERS, _canned_order
+from app.routers.orders import _ORDERS, _canned_order, _generate_virtual_account
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -87,11 +88,29 @@ async def simulate_payment(payload: SimulatePaymentRequest) -> SimulatePaymentRe
     if order is None:
         canned = _canned_order(payload.order_id)
         if canned is None:
-            raise HTTPException(
-                status_code=404, detail=f"Order {payload.order_id} not found"
-            )
-        order = dict(canned)
-        _ORDERS[payload.order_id] = order
+            # Auto-create a minimal demo order so ad-hoc IDs can be simulated
+            now = datetime.now(timezone.utc)
+            va = _generate_virtual_account()
+            order = {
+                "id": payload.order_id,
+                "status": "pending_payment",
+                "supplier_id": "sup_medtrust",
+                "supplier_name": "MedTrust Nigeria Limited",
+                "amount_ngn": 100,
+                "description": "Auto-created demo order",
+                "created_at": now,
+                "expected_delivery_by": now + timedelta(days=7),
+                "virtual_account_number": va,
+                "virtual_account_name": "Eri Escrow / Demo Buyer",
+                "virtual_account_bank": "Guaranty Trust Bank",
+                "squad_transaction_ref": payload.order_id,
+                "trust_score_at_creation": 100,
+                "trust_verdict_at_creation": "green",
+            }
+            _ORDERS[payload.order_id] = order
+        else:
+            order = dict(canned)
+            _ORDERS[payload.order_id] = order
 
     previous = order["status"]
     if previous not in {"pending_payment", "funded"}:
