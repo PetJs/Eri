@@ -1,12 +1,18 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://eri-xw3i.onrender.com'
 
 export class ApiError extends Error {
+  status: number
+
+  body?: unknown
+
   constructor(
-    public status: number,
+    status: number,
     message: string,
-    public body?: unknown,
+    body?: unknown,
   ) {
     super(message)
+    this.status = status
+    this.body = body
     this.name = 'ApiError'
   }
 }
