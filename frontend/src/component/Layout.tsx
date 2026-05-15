@@ -33,7 +33,7 @@ export default function Layout() {
             <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center">
               <ShieldCheck size={15} className="text-white" />
             </div>
-            <span className="font-bold text-base tracking-tight">TrustLock</span>
+            <span className="font-bold text-base tracking-tight">Eri</span>
           </div>
           <p className="text-[10px] text-gray-500 mt-1">Enterprise Tier</p>
           <p className="text-[10px] text-gray-500">1626 Free unlocks</p>

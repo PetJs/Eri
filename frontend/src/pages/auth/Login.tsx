@@ -24,7 +24,7 @@ export default function Login() {
               <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center">
                 <Shield size={12} className="text-white" />
               </div>
-              <span className="font-bold text-sm text-gray-900">TrustLock</span>
+              <span className="font-bold text-sm text-gray-900">Eri</span>
             </div>
           </div>
 
@@ -95,7 +95,7 @@ export default function Login() {
           <div className="max-w-sm">
             <p className="text-gray-600 text-5xl font-serif mb-6 leading-none">"</p>
             <blockquote className="text-gray-200 text-lg font-medium leading-relaxed mb-8">
-              "TrustLock caught a fake NAFDAC number we would have paid for. The system saved us ₦2 million in one transaction."
+              "Eri caught a fake NAFDAC number we would have paid for. The system saved us ₦2 million in one transaction."
             </blockquote>
             <div>
               <p className="text-white text-sm font-semibold">Adaeze O.</p>

@@ -20,7 +20,7 @@ A web app where a Nigerian pharmacy or hospital procurement officer can verify a
 
 ## The four pillars (and how we hit them)
 
-| Pillar | How TrustLock satisfies it |
+| Pillar | How Eri satisfies it |
 |---|---|
 | **AI Automation** | Three engines: NLP/rules-based supplier identity verification, computer vision product comparison + OCR, and a trained anomaly detection model on transaction patterns |
 | **Use of Data** | NAFDAC Greenbook lookup, CAC company verification, BVN-to-name matching, supplier transaction graph |
@@ -33,7 +33,7 @@ A web app where a Nigerian pharmacy or hospital procurement officer can verify a
 
 **Live demo flow (90 seconds on stage):**
 
-1. Buyer enters supplier name, CAC number, bank account → **TrustLock verifies in <10s**: ✓ CAC active, ✓ Bank name matches business, ⚠️ NAFDAC license expired, ⚠️ 2 prior buyers reported delays. **Score: 62/100 (Amber)**.
+1. Buyer enters supplier name, CAC number, bank account → **Eri verifies in <10s**: ✓ CAC active, ✓ Bank name matches business, ⚠️ NAFDAC license expired, ⚠️ 2 prior buyers reported delays. **Score: 62/100 (Amber)**.
 2. Buyer chooses to proceed with full escrow. Squad creates a virtual account. Buyer transfers ₦1.2M.
 3. Webhook fires → escrow funded.
 4. Supplier "delivers." Buyer uploads photos of received drugs.

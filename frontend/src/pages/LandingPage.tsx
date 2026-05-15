@@ -24,7 +24,7 @@ export default function LandingPage() {
             <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center">
               <Shield size={14} className="text-white" />
             </div>
-            <span className="font-bold text-base">TrustLock</span>
+            <span className="font-bold text-base">Eri</span>
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm text-gray-600">
             <a href="#how" className="hover:text-gray-900 transition-colors">How it works</a>
@@ -79,7 +79,7 @@ export default function LandingPage() {
         <div className="flex-1 flex justify-center md:justify-end">
           <img
             src={heroImg}
-            alt="TrustLock verification platform"
+            alt="Eri verification platform"
             className="w-full max-w-md rounded-2xl object-cover"
             draggable={false}
           />
@@ -154,7 +154,7 @@ export default function LandingPage() {
       {/* How money moves */}
       <section className="bg-gray-50 border-y border-gray-100 py-16">
         <div className="max-w-6xl mx-auto px-6">
-          <h2 className="text-2xl font-bold text-center mb-12">How money moves through TrustLock</h2>
+          <h2 className="text-2xl font-bold text-center mb-12">How money moves through Eri</h2>
           <div className="flex items-center justify-center flex-wrap gap-0">
             {steps.map((step, i) => (
               <div key={i} className="flex items-center">
@@ -247,7 +247,7 @@ export default function LandingPage() {
                 <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center">
                   <Shield size={12} className="text-white" />
                 </div>
-                <span className="font-bold text-sm">TrustLock</span>
+                <span className="font-bold text-sm">Eri</span>
               </div>
               <div className="inline-flex items-center gap-1.5 bg-pink-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
                 <span className="w-1.5 h-1.5 bg-white rounded-full" />
@@ -272,7 +272,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="mt-10 pt-6 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-gray-400">© 2026 TrustLock. All rights reserved.</p>
+            <p className="text-xs text-gray-400">© 2026 Eri. All rights reserved.</p>
             <div className="flex items-center gap-4">
               <Share2 size={14} className="text-gray-400 cursor-pointer hover:text-gray-600 transition-colors" />
               <Globe size={14} className="text-gray-400 cursor-pointer hover:text-gray-600 transition-colors" />

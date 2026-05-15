@@ -152,7 +152,7 @@ export default function OrderDetail() {
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
             <Shield size={16} className="text-green-600 mx-auto mb-2" />
             <p className="text-xs text-green-700 font-medium leading-snug">
-              Protected by TrustLock Escrow Guarantee up to ₦5,000,000
+              Protected by Eri Escrow Guarantee up to ₦5,000,000
             </p>
           </div>
         </div>

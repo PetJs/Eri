@@ -252,7 +252,7 @@ function Step2({ order, supplier, onNext }: { order: OrderResponse; supplier: Su
   }
 
   const accountNumber = order.virtual_account_number ?? '—'
-  const accountName = order.virtual_account_name ?? `TRUSTLOCK-${order.id.toUpperCase()}`
+  const accountName = order.virtual_account_name ?? `ERI-${order.id.toUpperCase()}`
   const bankName = order.virtual_account_bank ?? 'Guaranty Trust Bank'
   const amount = order.amount_ngn.toLocaleString()
 
@@ -317,7 +317,7 @@ function Step2({ order, supplier, onNext }: { order: OrderResponse; supplier: Su
 
       <div className="grid grid-cols-3 gap-3">
         {[
-          { icon: Shield, title: 'Funds held by Squad', desc: "Your payment is held in a secure Squad-managed account and never touches TrustLock's treasury." },
+          { icon: Shield, title: 'Funds held by Squad', desc: "Your payment is held in a secure Squad-managed account and never touches Eri's treasury." },
           { icon: CheckCircle2, title: 'Released on verification', desc: 'Funds are only moved to the supplier once you provide the delivery verification code.' },
           { icon: RefreshCw, title: 'Full refund if blocked', desc: "If delivery fails, funds are returned to your source bank within 24h." },
         ].map(({ icon: Icon, title, desc }) => (
@@ -482,7 +482,7 @@ function Step3({ order, supplier }: { order: OrderResponse; supplier: SupplierIn
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
           <Shield size={18} className="text-green-600 mx-auto mb-2" />
           <p className="text-xs text-green-700 font-medium leading-snug">
-            This transaction is insured by the TrustLock Escrow Guarantee up to ₦5,000,000
+            This transaction is insured by the Eri Escrow Guarantee up to ₦5,000,000
           </p>
         </div>
       </div>

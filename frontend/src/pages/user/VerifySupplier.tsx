@@ -390,8 +390,8 @@ export default function VerifySupplier() {
       </div>
 
       <p className="text-center text-[10px] text-gray-400 mt-4">
-        © 2026 TrustLock Financial Services. All verifications are real-time.
-      </p>
+            © 2026 Eri Financial Services. All verifications are real-time.
+          </p>
     </div>
   )
 }
