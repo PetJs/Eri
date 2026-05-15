@@ -1,4 +1,9 @@
 """
++Admin / observability endpoints.
++
++GET  /admin/metrics                  — REAL. Returns Engine 3's training metrics + cache stats.
++POST /admin/demo/simulate-payment    — Demo helper: triggers Squad's sandbox payment simulation.
++"""
 Admin / observability endpoints.
 
 GET  /admin/metrics                  — REAL. Returns Engine 3's training metrics + cache stats.
@@ -73,12 +78,11 @@ class SimulatePaymentResponse(BaseModel):
 @router.post(
     "/demo/simulate-payment",
     response_model=SimulatePaymentResponse,
-    summary="Demo helper: simulate Squad webhook for an order",
+    summary="Demo helper: simulate Squad payment into a DVA",
     description=(
-        "Flips an order from `pending_payment` to `funded` instantly. "
-        "Use this during the live demo to mimic 'funds landed in the escrow "
-        "virtual account' without waiting for a real Squad sandbox webhook. "
-        "Hide behind admin auth in production — for the hackathon it's open."
+        "Calls Squad's sandbox virtual-account simulate-payment endpoint "
+        "for the order's escrow account. If Squad is unavailable, we fall "
+        "back to a local status flip so the demo still progresses."
     ),
 )
 async def simulate_payment(payload: SimulatePaymentRequest) -> SimulatePaymentResponse:
@@ -102,12 +106,45 @@ async def simulate_payment(payload: SimulatePaymentRequest) -> SimulatePaymentRe
             ),
         )
 
+    simulation_message = ""
+    try:
+        from app.integrations.squad import get_squad_client
+
+        squad = get_squad_client()
+        if squad is None:
+            raise RuntimeError("Squad client unavailable")
+
+        simulation = await squad.simulate_virtual_account_payment(
+            virtual_account_number=order["virtual_account_number"],
+            amount_ngn=order["amount_ngn"],
+            merchant_reference=payload.order_id,
+            transaction_reference=order.get("squad_transaction_ref") or payload.order_id,
+        )
+
+        if simulation.success:
+            simulation_message = (
+                simulation.message
+                or (
+                    f"Triggered Squad payment simulation for {payload.order_id} "
+                    f"(₦{order['amount_ngn']:,})"
+                )
+            )
+        else:
+            raise RuntimeError(simulation.error or "Simulation failed")
+
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Squad simulation unavailable, falling back to local flip: %s", exc)
+        simulation_message = (
+            f"Squad simulation unavailable; marked order {payload.order_id} as funded locally"
+        )
+
+    previous = order["status"]
     order["status"] = "funded"
     return SimulatePaymentResponse(
         order_id=payload.order_id,
         previous_status=previous,
         new_status="funded",
-        message=(
+        message=simulation_message or (
             f"Order {payload.order_id} marked as funded "
             f"(₦{order['amount_ngn']:,} from buyer)"
         ),

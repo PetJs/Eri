@@ -6,11 +6,10 @@ export function useSimulatePayment(orderId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () =>
-      apiFetch<SimulatePaymentResponse>('/webhooks/squad', {
+      apiFetch<SimulatePaymentResponse>('/admin/demo/simulate-payment', {
         method: 'POST',
         body: JSON.stringify({
-          event: 'charge.success',
-          data: { transaction_ref: `txn_${orderId}`, amount: 0 },
+          order_id: orderId,
         }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['order', orderId] }),

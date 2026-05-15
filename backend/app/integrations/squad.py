@@ -101,6 +101,20 @@ class SquadVirtualAccount:
     refilled_pool: bool = False                # True if auto-refill kicked in
 
 
+@dataclass
+class SquadPaymentSimulation:
+    """Result of POST /virtual-account/simulate/payment."""
+
+    success: bool
+    transaction_ref: str
+    virtual_account_number: str | None = None
+    amount_naira: str | None = None
+    merchant_reference: str | None = None
+    transaction_status: str | None = None
+    message: str | None = None
+    error: str | None = None
+
+
 # -----------------------------------------------------------------------------
 # Client
 # -----------------------------------------------------------------------------
@@ -434,6 +448,88 @@ class SquadClient:
             return SquadVirtualAccount(
                 success=False,
                 transaction_reference=transaction_ref,
+                error=str(exc),
+            )
+
+    async def simulate_virtual_account_payment(
+        self,
+        virtual_account_number: str,
+        amount_ngn: int,
+        merchant_reference: str,
+        transaction_reference: str | None = None,
+    ) -> SquadPaymentSimulation:
+        """Simulate a transfer into a DVA in Squad's sandbox.
+
+        The sandbox endpoint is used for demo flows where a buyer chooses the
+        transfer option and we want the payment to hit the virtual account
+        immediately without waiting for a real bank transfer.
+        """
+        url = f"{self._base_url}/virtual-account/simulate/payment"
+        ref = transaction_reference or f"SIM-{uuid.uuid4().hex[:16].upper()}"
+
+        payload: dict[str, Any] = {
+            "virtual_account_number": virtual_account_number.strip(),
+            "amount": str(amount_ngn),
+            "merchant_reference": merchant_reference,
+            "transaction_reference": ref,
+        }
+
+        try:
+            async with self._client() as http:
+                response = await http.post(url, json=payload)
+
+            data = response.json()
+            if response.status_code != 200 or not data.get("success", True):
+                message = data.get("message", "Simulation failed")
+                logger.warning(
+                    "Squad payment simulation failed: %s (status=%s)",
+                    message,
+                    response.status_code,
+                )
+                return SquadPaymentSimulation(
+                    success=False,
+                    transaction_ref=ref,
+                    virtual_account_number=virtual_account_number,
+                    merchant_reference=merchant_reference,
+                    error=message,
+                )
+
+            body = data.get("data") or data
+            return SquadPaymentSimulation(
+                success=True,
+                transaction_ref=body.get("transaction_reference", ref),
+                virtual_account_number=body.get("virtual_account_number", virtual_account_number),
+                amount_naira=body.get("merchant_amount") or body.get("amount"),
+                merchant_reference=body.get("merchant_reference", merchant_reference),
+                transaction_status=body.get("transaction_status") or body.get("status"),
+                message=data.get("message") or body.get("message") or "Payment simulation triggered",
+            )
+
+        except httpx.TimeoutException:
+            logger.warning("Squad payment simulation timed out")
+            return SquadPaymentSimulation(
+                success=False,
+                transaction_ref=ref,
+                virtual_account_number=virtual_account_number,
+                merchant_reference=merchant_reference,
+                error="Timeout",
+            )
+        except httpx.HTTPError as exc:
+            logger.warning("Squad payment simulation HTTP error: %s", exc)
+            return SquadPaymentSimulation(
+                success=False,
+                transaction_ref=ref,
+                virtual_account_number=virtual_account_number,
+                merchant_reference=merchant_reference,
+                error=str(exc),
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Squad payment simulation unexpected error: %s", exc)
+            return SquadPaymentSimulation(
+                success=False,
+                transaction_ref=ref,
+                virtual_account_number=virtual_account_number,
+                merchant_reference=merchant_reference,
                 error=str(exc),
             )
 

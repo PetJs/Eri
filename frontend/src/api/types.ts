@@ -101,6 +101,8 @@ export interface OrderActionResponse {
 // ── Admin ────────────────────────────────────────────────────────────────────
 
 export interface SimulatePaymentResponse {
-  received: boolean
-  event: string
+  order_id: string
+  previous_status: string
+  new_status: string
+  message: string
 }

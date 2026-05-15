@@ -26,6 +26,8 @@ from app.settings import settings
 
 
 SQUAD_BASE = "https://sandbox-api-d.squadco.com"
+DVA_INITIATE_URL = f"{SQUAD_BASE}/virtual-account/initiate-dynamic-virtual-account"
+SIMULATE_PAYMENT_URL = f"{SQUAD_BASE}/virtual-account/simulate/payment"
 
 
 @pytest.fixture(autouse=True)
@@ -78,6 +80,41 @@ async def test_squad_account_lookup_success():
     assert result.found is True
     assert result.account_name == "JOHN DOE"
     assert result.source == "squad"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_squad_simulate_payment_success():
+    """Sandbox payment simulation should post the DVA and return success."""
+    respx.post(SIMULATE_PAYMENT_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": 200,
+                "success": True,
+                "message": "Simulation triggered",
+                "data": {
+                    "transaction_reference": "SIM-REF-123",
+                    "virtual_account_number": "9999888877",
+                    "merchant_reference": "ord_demo_test",
+                    "merchant_amount": "100.00",
+                    "transaction_status": "success",
+                },
+            },
+        )
+    )
+
+    squad = SquadClient(secret_key="sandbox_sk_test", base_url=SQUAD_BASE)
+    result = await squad.simulate_virtual_account_payment(
+        virtual_account_number="9999888877",
+        amount_ngn=100,
+        merchant_reference="ord_demo_test",
+    )
+
+    assert result.success is True
+    assert result.virtual_account_number == "9999888877"
+    assert result.amount_naira == "100.00"
+    assert result.merchant_reference == "ord_demo_test"
 
 
 @pytest.mark.asyncio
@@ -290,6 +327,42 @@ async def test_bank_uses_seed_when_squad_not_configured(monkeypatch):
 
 def test_simulate_payment_flips_pending_to_funded(client):
     # Create an order first
+    respx.post(DVA_INITIATE_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": 200,
+                "success": True,
+                "data": {
+                    "is_blocked": False,
+                    "account_name": "Eri",
+                    "account_number": "9999888877",
+                    "expected_amount": "500000.00",
+                    "expires_at": "2026-05-15T00:00:00Z",
+                    "transaction_reference": "ord_demo_pending",
+                    "bank": "GTBank",
+                    "currency": "NGN",
+                },
+            },
+        )
+    )
+    respx.post(SIMULATE_PAYMENT_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": 200,
+                "success": True,
+                "message": "Simulation triggered",
+                "data": {
+                    "transaction_reference": "SIM-REF-111",
+                    "virtual_account_number": "9999888877",
+                    "merchant_reference": "ord_demo_pending",
+                    "merchant_amount": "500000.00",
+                    "transaction_status": "success",
+                },
+            },
+        )
+    )
     create = client.post(
         "/orders",
         json={
@@ -315,8 +388,82 @@ def test_simulate_payment_flips_pending_to_funded(client):
     assert get_r.json()["status"] == "funded"
 
 
+@respx.mock
+def test_simulate_payment_triggers_squad_simulation(client):
+    """The admin demo route should call Squad's simulate-payment endpoint."""
+    respx.post(DVA_INITIATE_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": 200,
+                "success": True,
+                "data": {
+                    "is_blocked": False,
+                    "account_name": "Eri",
+                    "account_number": "9999888877",
+                    "expected_amount": "100.00",
+                    "expires_at": "2026-05-15T00:00:00Z",
+                    "transaction_reference": "ord_admin_sim",
+                    "bank": "GTBank",
+                    "currency": "NGN",
+                },
+            },
+        )
+    )
+    simulate_mock = respx.post(SIMULATE_PAYMENT_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": 200,
+                "success": True,
+                "message": "Simulation triggered",
+                "data": {
+                    "transaction_reference": "SIM-REF-123",
+                    "virtual_account_number": "9999888877",
+                    "merchant_reference": "ord_admin_sim",
+                    "merchant_amount": "100.00",
+                    "transaction_status": "success",
+                },
+            },
+        )
+    )
+
+    create = client.post(
+        "/orders",
+        json={
+            "supplier_id": "sup_medtrust",
+            "buyer_email": "buyer@example.com",
+            "amount_ngn": 100,
+            "description": "Test order",
+        },
+    )
+    order_id = create.json()["id"]
+
+    r = client.post("/admin/demo/simulate-payment", json={"order_id": order_id})
+    assert r.status_code == 200
+    assert simulate_mock.called
+    assert r.json()["new_status"] == "funded"
+
+
 def test_simulate_payment_works_on_canned_demo_orders(client):
     """Hits a canned demo order — should flip even though it wasn't 'created'."""
+    respx.post(SIMULATE_PAYMENT_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": 200,
+                "success": True,
+                "message": "Simulation triggered",
+                "data": {
+                    "transaction_reference": "SIM-REF-222",
+                    "virtual_account_number": "9012345678",
+                    "merchant_reference": "ord_demo_pending",
+                    "merchant_amount": "100000.00",
+                    "transaction_status": "success",
+                },
+            },
+        )
+    )
     r = client.post(
         "/admin/demo/simulate-payment",
         json={"order_id": "ord_demo_pending"},
@@ -336,6 +483,42 @@ def test_simulate_payment_404_for_unknown_order(client):
 def test_simulate_payment_409_for_already_released(client):
     """Can't simulate payment on an order in a non-fundable state."""
     # Create + fund + release an order
+    respx.post(DVA_INITIATE_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": 200,
+                "success": True,
+                "data": {
+                    "is_blocked": False,
+                    "account_name": "Eri",
+                    "account_number": "9999888877",
+                    "expected_amount": "100000.00",
+                    "expires_at": "2026-05-15T00:00:00Z",
+                    "transaction_reference": "ord_release_check",
+                    "bank": "GTBank",
+                    "currency": "NGN",
+                },
+            },
+        )
+    )
+    respx.post(SIMULATE_PAYMENT_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": 200,
+                "success": True,
+                "message": "Simulation triggered",
+                "data": {
+                    "transaction_reference": "SIM-REF-333",
+                    "virtual_account_number": "9999888877",
+                    "merchant_reference": "ord_release_check",
+                    "merchant_amount": "100000.00",
+                    "transaction_status": "success",
+                },
+            },
+        )
+    )
     create = client.post(
         "/orders",
         json={

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   CheckCircle2,
@@ -241,6 +241,8 @@ function Step1({ onCreated, supplier }: { onCreated: (order: OrderResponse) => v
 /* ===================== STEP 2: FUND ESCROW ===================== */
 function Step2({ order, supplier, onNext }: { order: OrderResponse; supplier: SupplierInfo; onNext: () => void }) {
   const [copied, setCopied] = useState(false)
+  const [showSimModal, setShowSimModal] = useState(false)
+  const [simMessage, setSimMessage] = useState('')
   const { mutate: simulate, isPending } = useSimulatePayment(order.id)
 
   function handleCopy() {
@@ -255,6 +257,28 @@ function Step2({ order, supplier, onNext }: { order: OrderResponse; supplier: Su
   const accountName = order.virtual_account_name ?? `ERI-${order.id.toUpperCase()}`
   const bankName = order.virtual_account_bank ?? 'Guaranty Trust Bank'
   const amount = order.amount_ngn.toLocaleString()
+
+  useEffect(() => {
+    if (!showSimModal) {
+      return undefined
+    }
+
+    const timeout = window.setTimeout(() => {
+      setShowSimModal(false)
+      onNext()
+    }, 1400)
+
+    return () => window.clearTimeout(timeout)
+  }, [onNext, showSimModal])
+
+  function handleSimulateTransfer() {
+    simulate(undefined, {
+      onSuccess: (result) => {
+        setSimMessage(result.message)
+        setShowSimModal(true)
+      },
+    })
+  }
 
   return (
     <div className="space-y-5">
@@ -330,7 +354,7 @@ function Step2({ order, supplier, onNext }: { order: OrderResponse; supplier: Su
       </div>
 
       <button
-        onClick={() => simulate(undefined, { onSuccess: onNext })}
+        onClick={handleSimulateTransfer}
         disabled={isPending}
         className="w-full py-2.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
       >
@@ -340,13 +364,32 @@ function Step2({ order, supplier, onNext }: { order: OrderResponse; supplier: Su
             Processing...
           </>
         ) : (
-          <><CheckCircle2 size={14} /> Simulate payment received (demo)</>
+          <><CheckCircle2 size={14} /> Simulate transfer received (demo)</>
         )}
       </button>
 
       <p className="text-center text-xs text-gray-400">
         <button className="text-red-500 hover:underline">Cancel order and release virtual account</button>
       </p>
+
+      {showSimModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-gray-100">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-700">
+              <CheckCircle2 size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 text-center">Transfer simulated successfully</h3>
+            <p className="mt-2 text-sm text-gray-600 text-center leading-relaxed">
+              {simMessage || 'Squad received the sandbox transfer simulation. Escrow will move to funded once the webhook lands.'}
+            </p>
+            <div className="mt-5 flex justify-center">
+              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-gray-100">
+                <div className="h-full w-full animate-pulse rounded-full bg-green-500" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -548,7 +591,10 @@ export default function OrderNew() {
           }}
         />
       )}
-      {step === 2 && order && <Step2 order={order} supplier={supplier} onNext={() => setStep(3)} />}
+      {step === 2 && order && <Step2 order={order} supplier={supplier} onNext={() => {
+        setOrder((current) => (current ? { ...current, status: 'funded' } : current))
+        setStep(3)
+      }} />}
       {step === 3 && order && <Step3 order={order} supplier={supplier} />}
     </div>
   )
