@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # -- CORS -------------------------------------------------------------
     # Comma-separated origins allowed to call the API. In dev we allow
     # the default Vite (5173) and Next.js (3000) ports. Tighten in prod.
-    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
+    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://eri-gamma.vercel.app"
 
     # -- Squad (HabariPay) ------------------------------------------------
     # Used by the orders router (stubs for now, real wiring later)
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     squad_webhook_secret: str = ""
 
     # -- LLM --------------------------------------------------------------
-    gemini_api_key: str = ""  # used by app/integrations/llm.py
+    gemini_api_key: str = "AIzaSyCWgMuf0sLqn5LbStrc5z_ALPAxXaxoocs"  # used by app/integrations/llm.py
 
     # -- Pydantic settings config ----------------------------------------
     model_config = SettingsConfigDict(
