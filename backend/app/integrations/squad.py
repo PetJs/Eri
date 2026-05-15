@@ -354,12 +354,14 @@ class SquadClient:
         """
         url = f"{self._base_url}/virtual-account/initiate-dynamic-virtual-account"
 
-        # DVA endpoint expects amount in NAIRA (not kobo) as a string.
-        # The Transfer endpoint expects kobo. Squad's API is inconsistent here.
-        amount_naira_str = f"{amount_kobo / 100:.2f}"
+        # Squad's DVA endpoint expects amount in KOBO (not naira) as a string.
+        # Confirmed via sandbox testing: passing "1000" results in
+        # merchant_amount: "1.00" (Squad divides by 100 internally).
+        # Same convention as the Transfer endpoint.
+        amount_kobo_str = str(amount_kobo)
 
         payload: dict[str, Any] = {
-            "amount": amount_naira_str,
+            "amount": amount_kobo_str,
             "transaction_ref": transaction_ref,
             "email": email,
             "duration": str(duration_seconds),
