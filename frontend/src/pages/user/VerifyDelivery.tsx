@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   XCircle,
@@ -13,18 +13,16 @@ import {
 } from 'lucide-react'
 import { useVerifyDelivery } from '../../api/verify'
 import type { VerifyDeliveryResponse } from '../../api/types'
+import { getStoredOrder } from '../../lib/storage'
 
 /* ===================== UPLOAD VIEW ===================== */
-function UploadView({ orderId }: { orderId: string }) {
-  const navigate = useNavigate()
+function UploadView({ orderId, onResult }: { orderId: string; onResult: (r: VerifyDeliveryResponse) => void }) {
   const { mutate, isPending, error } = useVerifyDelivery()
-  const quoteRef = useRef<HTMLInputElement>(null)
-  const deliveryRef = useRef<HTMLInputElement>(null)
+  const navigate = useNavigate()
   const [quoteFile, setQuoteFile] = useState<File | null>(null)
   const [deliveryFile, setDeliveryFile] = useState<File | null>(null)
-  const [nafdac, setNafdac] = useState('')
-  const [manufacturer, setManufacturer] = useState('')
-  const [product, setProduct] = useState('')
+
+  const storedOrder = getStoredOrder(orderId)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -34,16 +32,11 @@ function UploadView({ orderId }: { orderId: string }) {
         orderId,
         quoteImage: quoteFile,
         deliveryImage: deliveryFile,
-        expectedNafdac: nafdac || undefined,
-        expectedManufacturer: manufacturer || undefined,
-        expectedProduct: product || undefined,
+        expectedNafdac: storedOrder?.expected_nafdac,
+        expectedManufacturer: storedOrder?.expected_manufacturer,
+        expectedProduct: storedOrder?.expected_product,
       },
-      {
-        onSuccess: (result) => {
-          navigate(`/orders/${orderId}/verify`, { state: { result } })
-          window.location.reload()
-        },
-      },
+      { onSuccess: onResult },
     )
   }
 
@@ -59,94 +52,59 @@ function UploadView({ orderId }: { orderId: string }) {
 
       <div>
         <h1 className="text-xl font-bold text-gray-900">Verify delivery</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Upload both product images for AI-powered comparison.</p>
+        <p className="text-sm text-gray-500 mt-0.5">Upload a photo of the quoted product and the delivered product. The AI will compare them.</p>
       </div>
+
+      {/* Order context pill */}
+      {storedOrder && (storedOrder.expected_product || storedOrder.expected_nafdac) && (
+        <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+          <CheckCircle2 size={14} className="text-blue-500 flex-shrink-0" />
+          <div className="text-xs text-blue-700">
+            <span className="font-semibold">Checking against order: </span>
+            {[storedOrder.expected_product, storedOrder.expected_nafdac, storedOrder.expected_manufacturer]
+              .filter(Boolean).join(' · ')}
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
-          {/* Quote image */}
           <div>
             <p className="text-xs font-medium text-gray-600 mb-1.5">Quoted product photo</p>
-            <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-5 cursor-pointer transition-colors ${quoteFile ? 'border-green-300 bg-green-50/30' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'}`}>
+            <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-8 cursor-pointer transition-colors ${quoteFile ? 'border-green-300 bg-green-50/30' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'}`}>
               {quoteFile ? (
                 <>
-                  <CheckCircle2 size={18} className="text-green-500 mb-1" />
+                  <CheckCircle2 size={20} className="text-green-500 mb-2" />
                   <span className="text-xs text-green-700 font-medium text-center truncate max-w-full px-2">{quoteFile.name}</span>
                 </>
               ) : (
                 <>
-                  <Upload size={18} className="text-gray-400 mb-2" />
-                  <span className="text-xs text-gray-500">Browse or drop image</span>
+                  <Upload size={20} className="text-gray-300 mb-2" />
+                  <span className="text-xs text-gray-500 font-medium">Original / invoice photo</span>
+                  <span className="text-[10px] text-gray-400 mt-1">Browse or drop here</span>
                 </>
               )}
-              <input
-                ref={quoteRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => setQuoteFile(e.target.files?.[0] ?? null)}
-                required
-              />
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => setQuoteFile(e.target.files?.[0] ?? null)} required />
             </label>
           </div>
 
-          {/* Delivery image */}
           <div>
             <p className="text-xs font-medium text-gray-600 mb-1.5">Delivered product photo</p>
-            <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-5 cursor-pointer transition-colors ${deliveryFile ? 'border-green-300 bg-green-50/30' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'}`}>
+            <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-8 cursor-pointer transition-colors ${deliveryFile ? 'border-green-300 bg-green-50/30' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'}`}>
               {deliveryFile ? (
                 <>
-                  <CheckCircle2 size={18} className="text-green-500 mb-1" />
+                  <CheckCircle2 size={20} className="text-green-500 mb-2" />
                   <span className="text-xs text-green-700 font-medium text-center truncate max-w-full px-2">{deliveryFile.name}</span>
                 </>
               ) : (
                 <>
-                  <Upload size={18} className="text-gray-400 mb-2" />
-                  <span className="text-xs text-gray-500">Browse or drop image</span>
+                  <Upload size={20} className="text-gray-300 mb-2" />
+                  <span className="text-xs text-gray-500 font-medium">What arrived today</span>
+                  <span className="text-[10px] text-gray-400 mt-1">Browse or drop here</span>
                 </>
               )}
-              <input
-                ref={deliveryRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => setDeliveryFile(e.target.files?.[0] ?? null)}
-                required
-              />
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => setDeliveryFile(e.target.files?.[0] ?? null)} required />
             </label>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Expected NAFDAC #</label>
-            <input
-              type="text"
-              value={nafdac}
-              onChange={(e) => setNafdac(e.target.value)}
-              placeholder="04-9412"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Manufacturer</label>
-            <input
-              type="text"
-              value={manufacturer}
-              onChange={(e) => setManufacturer(e.target.value)}
-              placeholder="Novartis"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Product name</label>
-            <input
-              type="text"
-              value={product}
-              onChange={(e) => setProduct(e.target.value)}
-              placeholder="Coartem"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-            />
           </div>
         </div>
 
@@ -179,6 +137,15 @@ function UploadView({ orderId }: { orderId: string }) {
 function ResultView({ result, orderId }: { result: VerifyDeliveryResponse; orderId: string }) {
   const navigate = useNavigate()
   const isGreen = result.verdict === 'green'
+  const isAmber = result.verdict === 'amber'
+
+  const verdictColors = isGreen
+    ? { bg: 'bg-green-100', icon: 'text-green-600', banner: 'bg-green-50 border-green-200', text: 'text-green-800', sub: 'text-green-600', badge: 'bg-green-100 text-green-700' }
+    : isAmber
+    ? { bg: 'bg-amber-100', icon: 'text-amber-600', banner: 'bg-amber-50 border-amber-200', text: 'text-amber-800', sub: 'text-amber-600', badge: 'bg-amber-100 text-amber-700' }
+    : { bg: 'bg-red-100', icon: 'text-red-600', banner: 'bg-red-50 border-red-200', text: 'text-red-800', sub: 'text-red-600', badge: 'bg-red-100 text-red-700' }
+
+  const confidencePct = Math.round(result.match_confidence * (result.match_confidence <= 1 ? 100 : 1))
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-5">
@@ -190,42 +157,47 @@ function ResultView({ result, orderId }: { result: VerifyDeliveryResponse; order
         <span className="font-semibold text-gray-700">Delivery Verification</span>
       </div>
 
+      {/* Title row */}
       <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center ${isGreen ? 'bg-green-100' : 'bg-red-100'}`}>
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center ${verdictColors.bg}`}>
           {isGreen
-            ? <CheckCircle2 size={18} className="text-green-600" />
-            : <XCircle size={18} className="text-red-600" />
+            ? <CheckCircle2 size={18} className={verdictColors.icon} />
+            : isAmber
+            ? <AlertTriangle size={18} className={verdictColors.icon} />
+            : <XCircle size={18} className={verdictColors.icon} />
           }
         </div>
         <div>
           <h1 className="text-xl font-bold text-gray-900">
-            {isGreen ? 'Delivery verified' : 'Delivery blocked'}
+            {isGreen ? 'Delivery verified' : isAmber ? 'Delivery uncertain' : 'Delivery blocked'}
           </h1>
           <p className="text-sm text-gray-500">
             {isGreen
-              ? 'All checks passed. You can release funds to the supplier.'
-              : 'Issues detected. Funds remain in escrow.'}
+              ? 'Product matches the order. You can release funds to the supplier.'
+              : isAmber
+              ? 'Partial match detected. Review concerns before releasing funds.'
+              : 'Issues detected. Funds remain in escrow until resolved.'}
           </p>
         </div>
-        <span className={`ml-auto text-[10px] font-bold px-2.5 py-1 rounded-full ${isGreen ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-          SCORE {result.score}
+        <span className={`ml-auto text-[10px] font-bold px-2.5 py-1 rounded-full ${verdictColors.badge}`}>
+          {confidencePct}% MATCH
         </span>
       </div>
 
       {/* Status banner */}
-      <div className={`border rounded-xl p-4 flex items-start gap-4 ${isGreen ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+      <div className={`border rounded-xl p-4 flex items-start gap-4 ${verdictColors.banner}`}>
         {isGreen
-          ? <CheckCircle2 size={18} className="text-green-600 flex-shrink-0" />
-          : <XCircle size={18} className="text-red-600 flex-shrink-0" />
+          ? <CheckCircle2 size={18} className={`${verdictColors.icon} flex-shrink-0`} />
+          : <XCircle size={18} className={`${verdictColors.icon} flex-shrink-0`} />
         }
         <div className="flex-1">
-          <p className={`text-sm font-semibold ${isGreen ? 'text-green-800' : 'text-red-800'}`}>
+          <p className={`text-sm font-semibold ${verdictColors.text}`}>
             {isGreen ? 'Goods match the order' : 'Product mismatch detected'}
           </p>
           {result.concerns.length > 0 && (
             <ul className="mt-1 space-y-0.5">
               {result.concerns.map((c, i) => (
-                <li key={i} className={`text-xs ${isGreen ? 'text-green-600' : 'text-red-600'} flex items-start gap-1`}>
+                <li key={i} className={`text-xs ${verdictColors.sub} flex items-start gap-1`}>
                   <AlertTriangle size={10} className="mt-0.5 flex-shrink-0" /> {c}
                 </li>
               ))}
@@ -234,49 +206,37 @@ function ResultView({ result, orderId }: { result: VerifyDeliveryResponse; order
         </div>
       </div>
 
-      {/* Checks breakdown */}
+      {/* What was detected */}
       <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Verification Checks</h3>
-        <div className="space-y-3">
-          {result.checks.map((c) => (
-            <div key={c.name} className="flex items-start gap-3">
-              {c.status === 'pass' && <CheckCircle2 size={15} className="text-green-500 mt-0.5 flex-shrink-0" />}
-              {c.status === 'fail' && <XCircle size={15} className="text-red-500 mt-0.5 flex-shrink-0" />}
-              {(c.status === 'warn' || c.status === 'unverified') && <AlertTriangle size={15} className="text-amber-500 mt-0.5 flex-shrink-0" />}
-              <div>
-                <p className="text-sm font-medium text-gray-800">{c.name}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{c.detail}</p>
-              </div>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Detected product details</h3>
+        <div className="space-y-2">
+          {[
+            { label: 'Brand / product name', val: result.delivered_brand },
+            { label: 'Dosage', val: result.delivered_dosage },
+            { label: 'NAFDAC number', val: result.delivered_nafdac },
+          ].map(({ label, val }) => (
+            <div key={label} className="flex items-center justify-between text-xs border-b border-gray-50 py-2 last:border-0">
+              <span className="text-gray-500">{label}</span>
+              <span className={`font-semibold ${val ? 'text-gray-800' : 'text-gray-300'}`}>
+                {val ?? 'Not detected'}
+              </span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* NAFDAC lookup */}
-      {result.detected_nafdac_number && (
+      {/* Differences */}
+      {result.differences.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">NAFDAC Greenbook</h3>
-            <Shield size={14} className={isGreen ? 'text-green-500' : 'text-red-400'} />
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Differences found</h3>
+          <div className="space-y-2">
+            {result.differences.map((d, i) => (
+              <div key={i} className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                <AlertTriangle size={13} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-800">{d}</p>
+              </div>
+            ))}
           </div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-2xl font-mono font-bold text-gray-900">{result.detected_nafdac_number}</span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isGreen ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              {isGreen ? 'ACTIVE' : 'MISMATCH'}
-            </span>
-          </div>
-          {result.nafdac_lookup_result && (
-            <div className="space-y-1.5">
-              {Object.entries(result.nafdac_lookup_result)
-                .filter(([k]) => ['product_name', 'manufacturer', 'status'].includes(k))
-                .map(([k, v]) => (
-                  <div key={k} className="flex items-center justify-between text-xs border-b border-gray-50 pb-1.5">
-                    <span className="text-gray-500 capitalize">{k.replace(/_/g, ' ')}</span>
-                    <span className="font-medium text-gray-800">{String(v)}</span>
-                  </div>
-                ))}
-            </div>
-          )}
         </div>
       )}
 
@@ -299,7 +259,7 @@ function ResultView({ result, orderId }: { result: VerifyDeliveryResponse; order
               <div>
                 <p className="text-sm font-semibold text-gray-900">Funds protected</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Your escrow balance is safe. The Release Funds button is disabled.
+                  Your escrow balance is safe. The Release Funds button is disabled until issues are resolved.
                 </p>
               </div>
             </div>
@@ -307,10 +267,16 @@ function ResultView({ result, orderId }: { result: VerifyDeliveryResponse; order
               <XCircle size={14} /> Release blocked — verification failed
             </button>
             <div className="grid grid-cols-2 gap-3">
-              <button className="py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+              <button
+                onClick={() => navigate(`/orders/${orderId}`)}
+                className="py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
                 Open dispute with supplier
               </button>
-              <button className="py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+              <button
+                onClick={() => navigate(`/orders/${orderId}`)}
+                className="py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+              >
                 <ArrowRight size={14} /> Refund my escrow
               </button>
             </div>
@@ -527,6 +493,7 @@ function ConfirmedView() {
 export default function VerifyDelivery() {
   const { id } = useParams<{ id: string }>()
   const orderId = id ?? 'unknown'
+  const [result, setResult] = useState<VerifyDeliveryResponse | null>(null)
 
   const isDemoBlocked = orderId === 'ORD-7891'
   const isDemoConfirmed = orderId === 'ORD-882'
@@ -558,5 +525,9 @@ export default function VerifyDelivery() {
     )
   }
 
-  return <UploadView orderId={orderId} />
+  if (result) {
+    return <ResultView result={result} orderId={orderId} />
+  }
+
+  return <UploadView orderId={orderId} onResult={setResult} />
 }

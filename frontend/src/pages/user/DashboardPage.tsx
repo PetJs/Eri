@@ -245,7 +245,7 @@ export default function DashboardPage() {
       {/* Quick action */}
       <div className="pb-2">
         <button
-          onClick={() => navigate('/orders/new')}
+          onClick={() => navigate('/verify-supplier')}
           className="fixed bottom-6 right-6 flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-full text-sm font-semibold shadow-lg hover:bg-blue-700 transition-colors"
         >
           + New Verification

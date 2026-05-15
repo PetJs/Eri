@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, AlertTriangle, Circle, Upload, ArrowRight, ChevronDown } from 'lucide-react'
 import { useVerifySupplier } from '../../api/verify'
 import type { VerificationCheck } from '../../api/types'
+import { saveSupplier } from '../../lib/storage'
 
 type CheckState = 'pending' | 'loading' | 'pass' | 'warn' | 'fail'
 
@@ -138,6 +139,14 @@ export default function VerifySupplier() {
       expected_nafdac_number: form.nafdac || undefined,
       expected_manufacturer: form.manufacturer || undefined,
       expected_product: form.product || undefined,
+    }, {
+      onSuccess: (result) => {
+        saveSupplier({
+          name: form.company, rc: form.rc, bank: form.bank,
+          account: form.account, score: result.score,
+          verdict: result.verdict, verifiedAt: new Date().toISOString(),
+        })
+      },
     })
   }
 

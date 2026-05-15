@@ -15,6 +15,7 @@ import {
 import { useCreateOrder } from '../../api/orders'
 import { useSimulatePayment } from '../../api/admin'
 import type { OrderResponse } from '../../api/types'
+import { saveOrder } from '../../lib/storage'
 
 type Step = 1 | 2 | 3
 
@@ -94,7 +95,15 @@ function Step1({ onCreated, supplier }: { onCreated: (order: OrderResponse) => v
         description,
         buyer_email: 'demo@eri.app',
       },
-      { onSuccess: onCreated },
+      { onSuccess: (order) => {
+          saveOrder(order, {
+            expected_nafdac: form.nafdac || undefined,
+            expected_manufacturer: form.manufacturer || undefined,
+            expected_product: form.product || undefined,
+          })
+          onCreated(order)
+        }
+      },
     )
   }
 
@@ -397,20 +406,6 @@ function Step2({ order, supplier, onNext }: { order: OrderResponse; supplier: Su
 /* ===================== STEP 3: AWAITING DELIVERY ===================== */
 function Step3({ order, supplier }: { order: OrderResponse; supplier: SupplierInfo }) {
   const navigate = useNavigate()
-  const [photos, setPhotos] = useState<Record<string, string>>({})
-
-  const photoSlots = [
-    { key: 'supplier', label: 'SUPPLIER DOC' },
-    { key: 'photo', label: 'PHOTOGRAPH' },
-    { key: 'ai', label: 'AI CONFIRM' },
-  ]
-
-  function handlePhotoUpload(key: string, e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) {
-      setPhotos((prev) => ({ ...prev, [key]: URL.createObjectURL(file) }))
-    }
-  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -434,24 +429,8 @@ function Step3({ order, supplier }: { order: OrderResponse; supplier: SupplierIn
           </div>
           <p className="text-base font-semibold text-gray-800 mb-1">Waiting for supplier to confirm shipment</p>
           <p className="text-sm text-gray-400 mb-6">
-            Once the supplier marks the order as shipped you'll get a notification with a link to upload delivery photos for AI verification.
+            Once the supplier marks the order as shipped, click the button below to go to the delivery verification page and upload your product photos for AI analysis.
           </p>
-
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {photoSlots.map(({ key, label }) => (
-              <label key={key} className="aspect-square border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-300 hover:bg-blue-50/20 transition-colors relative overflow-hidden">
-                {photos[key] ? (
-                  <img src={photos[key]} alt={label} className="absolute inset-0 w-full h-full object-cover rounded-xl" />
-                ) : (
-                  <>
-                    <Upload size={18} className="text-gray-300 mb-2" />
-                    <span className="text-[9px] text-gray-400 font-bold tracking-wide">{label}</span>
-                  </>
-                )}
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(key, e)} />
-              </label>
-            ))}
-          </div>
 
           <div className="flex items-center gap-3 justify-center">
             <button

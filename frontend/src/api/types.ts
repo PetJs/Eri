@@ -29,23 +29,15 @@ export interface VerifySupplierResponse {
 
 // ── Delivery verification ────────────────────────────────────────────────────
 
-export interface DeliveryVerificationCheck {
-  name: string
-  status: CheckStatus
-  weight: number
-  detail: string
-}
-
 export interface VerifyDeliveryResponse {
   order_id: string
   verdict: 'green' | 'amber' | 'red'
-  score: number
-  checks: DeliveryVerificationCheck[]
+  match_confidence: number
+  delivered_brand: string | null
+  delivered_dosage: string | null
+  delivered_nafdac: string | null
+  differences: string[]
   concerns: string[]
-  detected_nafdac_number: string | null
-  nafdac_lookup_result: Record<string, unknown> | null
-  ocr_source: 'tesseract' | 'llm'
-  duration_ms: number
 }
 
 // ── Orders ───────────────────────────────────────────────────────────────────
