@@ -15,7 +15,7 @@ import {
 import { useCreateOrder } from '../../api/orders'
 import { useSimulatePayment } from '../../api/admin'
 import type { OrderResponse } from '../../api/types'
-import { saveOrder } from '../../lib/storage'
+import { saveOrder, updateStoredOrderStatus } from '../../lib/storage'
 
 type Step = 1 | 2 | 3
 
@@ -283,6 +283,7 @@ function Step2({ order, supplier, onNext }: { order: OrderResponse; supplier: Su
   function handleSimulateTransfer() {
     simulate(undefined, {
       onSuccess: (result) => {
+        updateStoredOrderStatus(order.id, 'funded')
         setSimMessage(result.message)
         setShowSimModal(true)
       },
