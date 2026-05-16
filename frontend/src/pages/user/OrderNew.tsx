@@ -299,8 +299,8 @@ function ReviewForm({
   const [supplier, setSupplier] = useState<InvoiceSupplier>({ ...extraction.supplier })
   const [items, setItems] = useState<EditableLineItem[]>(() =>
     extraction.line_items.map((it, i) => ({
-      _key: `${i}-${it.product_name}`,
-      product_name: it.product_name,
+      _key: `${i}-${it.description}`,
+      product_name: it.description,
       nafdac_registration: it.nafdac_registration ?? '',
       manufacturer: it.manufacturer ?? '',
       batch_number: it.batch_number ?? '',
@@ -364,7 +364,7 @@ function ReviewForm({
 
     const lineItems: InvoiceLineItem[] = items.map((it, i) => ({
       line_number: i + 1,
-      product_name: it.product_name,
+      description: it.product_name,
       nafdac_registration: it.nafdac_registration || null,
       manufacturer: it.manufacturer || null,
       batch_number: it.batch_number || null,
@@ -387,6 +387,7 @@ function ReviewForm({
           vat: editableTotals.vat,
           grand_total: grandTotal,
         },
+        buyer_email: extraction.buyer.email,
       },
       {
         onSuccess: (order: OrderResponse) => {

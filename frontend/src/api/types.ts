@@ -95,7 +95,7 @@ export interface InvoiceMetadata {
 
 export interface InvoiceLineItem {
   line_number: number
-  product_name: string
+  description: string
   nafdac_registration: string | null
   manufacturer: string | null
   batch_number: string | null
@@ -127,6 +127,7 @@ export interface CreateOrderFromInvoiceRequest {
   invoice_metadata: InvoiceMetadata
   line_items: InvoiceLineItem[]
   totals: InvoiceTotals
+  buyer_email: string
   expected_delivery_days?: number
 }
 
