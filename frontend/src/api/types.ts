@@ -59,6 +59,77 @@ export interface CreateOrderRequest {
   expected_delivery_days?: number
 }
 
+// ── Invoice extraction ───────────────────────────────────────────────────────
+
+export interface InvoiceBankAccount {
+  account_number: string
+  account_name: string
+  bank_name: string
+  bank_code?: string
+}
+
+export interface InvoiceSupplier {
+  name: string
+  rc_number: string
+  address: string
+  phone: string
+  email: string
+  bank_account: InvoiceBankAccount
+}
+
+export interface InvoiceBuyer {
+  name: string
+  address: string
+  phone: string
+  email: string
+}
+
+export interface InvoiceMetadata {
+  invoice_number: string
+  invoice_date: string
+  currency: string
+  payment_terms: string
+  confidence_score: number
+  fraud_flags: string[]
+}
+
+export interface InvoiceLineItem {
+  line_number: number
+  product_name: string
+  nafdac_registration: string | null
+  manufacturer: string | null
+  batch_number: string | null
+  expiry_date: string | null
+  quantity: number
+  unit: string
+  unit_price: number
+  line_total: number
+}
+
+export interface InvoiceTotals {
+  subtotal: number
+  discount: number
+  vat: number
+  grand_total: number
+}
+
+export interface ExtractInvoiceResponse {
+  supplier: InvoiceSupplier
+  buyer: InvoiceBuyer
+  invoice_metadata: InvoiceMetadata
+  line_items: InvoiceLineItem[]
+  totals: InvoiceTotals
+}
+
+export interface CreateOrderFromInvoiceRequest {
+  supplier: InvoiceSupplier
+  buyer: InvoiceBuyer
+  invoice_metadata: InvoiceMetadata
+  line_items: InvoiceLineItem[]
+  totals: InvoiceTotals
+  expected_delivery_days?: number
+}
+
 export interface OrderResponse {
   id: string
   status: OrderStatus
@@ -73,6 +144,8 @@ export interface OrderResponse {
   virtual_account_bank: string | null
   trust_score_at_creation: number | null
   trust_verdict_at_creation: string | null
+  line_items?: InvoiceLineItem[]
+  verification_status?: string
 }
 
 export interface ReleaseOrderRequest {

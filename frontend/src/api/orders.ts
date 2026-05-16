@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiFetch } from './client'
+import { apiFetch, apiFetchForm } from './client'
 import type {
   CreateOrderRequest,
+  CreateOrderFromInvoiceRequest,
+  ExtractInvoiceResponse,
   OrderResponse,
   ReleaseOrderRequest,
   DisputeOrderRequest,
@@ -20,6 +22,25 @@ export function useCreateOrder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: CreateOrderRequest) =>
+      apiFetch<OrderResponse>('/orders', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+  })
+}
+
+export function useExtractInvoice() {
+  return useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData()
+      fd.append('file', file)
+      return apiFetchForm<ExtractInvoiceResponse>('/orders/extract-invoice', fd)
+    },
+  })
+}
+
+export function useCreateOrderFromInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CreateOrderFromInvoiceRequest) =>
       apiFetch<OrderResponse>('/orders', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
   })
