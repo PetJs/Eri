@@ -387,7 +387,7 @@ function ReviewForm({
           vat: editableTotals.vat,
           grand_total: grandTotal,
         },
-        buyer_email: extraction.buyer.email,
+        buyer_email: 'adaeze@safeguardpharmacy.ng',
       },
       {
         onSuccess: (order: OrderResponse) => {

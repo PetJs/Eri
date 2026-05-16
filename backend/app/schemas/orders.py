@@ -85,7 +85,7 @@ class CreateOrderFromInvoiceRequest(BaseModel):
     buyer: InvoiceBuyer | None = None
     line_items: list[InvoiceLineItem] = Field(..., min_length=1)
     totals: InvoiceTotals
-    buyer_email: EmailStr
+    buyer_email: EmailStr | None = None
     source_document_id: str | None = None
     expected_delivery_days: int = Field(default=14, ge=1, le=180)
 

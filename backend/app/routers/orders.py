@@ -430,7 +430,7 @@ async def create_order(
             dva = await squad.initiate_dynamic_va(
                 amount_kobo=amount_ngn * 100,
                 transaction_ref=order_id,
-                email=payload.buyer_email,
+                email=str(payload.buyer_email) if payload.buyer_email else "escrow@eri.ng",
                 duration_seconds=3600 * 24,
             )
             if dva.success and dva.account_number:
@@ -460,7 +460,7 @@ async def create_order(
         "supplier_name": supplier_name,
         "amount_ngn": amount_ngn,
         "description": description,
-        "buyer_email": str(payload.buyer_email),
+        "buyer_email": str(payload.buyer_email) if payload.buyer_email else None,
         "created_at": now,
         "expected_delivery_by": now + timedelta(days=payload.expected_delivery_days),
         "virtual_account_number": virtual_account_number,
