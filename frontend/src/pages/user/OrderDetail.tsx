@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowRight, CheckCircle2, Shield, FileText } from 'lucide-react'
-import { useOrder } from '../../api/orders'
+import { ArrowRight, CheckCircle2, Shield, FileText, AlertTriangle, XCircle } from 'lucide-react'
+import { useOrder, useReleaseOrder } from '../../api/orders'
+import { updateStoredOrderStatus } from '../../lib/storage'
 
 const STATUS_LABEL: Record<string, string> = {
   pending_payment: 'PENDING',
@@ -22,10 +24,27 @@ const STATUS_STYLE: Record<string, string> = {
   cancelled: 'bg-gray-100 text-gray-500',
 }
 
+const RELEASABLE_STATUSES = new Set(['funded', 'delivered_pending'])
+
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: order, isLoading, error } = useOrder(id)
+  const [showReleaseModal, setShowReleaseModal] = useState(false)
+  const [releaseSuccess, setReleaseSuccess] = useState(false)
+  const { mutate: releaseOrder, isPending: isReleasing, error: releaseError } = useReleaseOrder(id ?? '')
+
+  function handleRelease() {
+    releaseOrder(
+      {},
+      {
+        onSuccess: () => {
+          if (id) updateStoredOrderStatus(id, 'released')
+          setReleaseSuccess(true)
+        },
+      },
+    )
+  }
 
   if (isLoading) {
     return (
@@ -58,6 +77,7 @@ export default function OrderDetail() {
   const createdDate = new Date(order.created_at).toLocaleDateString('en-GB', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
+  const canRelease = RELEASABLE_STATUSES.has(order.status)
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -77,12 +97,22 @@ export default function OrderDetail() {
             <span className="text-xs text-gray-400">{createdDate}</span>
           </div>
         </div>
-        <button
-          onClick={() => navigate(`/orders/${id}/verify`)}
-          className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
-        >
-          View Delivery Verification <ArrowRight size={14} />
-        </button>
+        <div className="flex items-center gap-2">
+          {canRelease && (
+            <button
+              onClick={() => setShowReleaseModal(true)}
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors"
+            >
+              <CheckCircle2 size={14} /> Release Funds
+            </button>
+          )}
+          <button
+            onClick={() => navigate(`/orders/${id}/verify`)}
+            className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
+          >
+            Delivery Verification <ArrowRight size={14} />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -157,6 +187,74 @@ export default function OrderDetail() {
           </div>
         </div>
       </div>
+
+      {/* ── Release confirmation modal ─────────────────────────────────────── */}
+      {showReleaseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-gray-100">
+            {releaseSuccess ? (
+              <div className="text-center">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+                  <CheckCircle2 size={26} className="text-green-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">Funds released!</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  ₦{order.amount_ngn.toLocaleString()} has been transferred to{' '}
+                  <strong>{order.supplier_name}</strong>.
+                </p>
+                <button
+                  onClick={() => { setShowReleaseModal(false); navigate('/orders') }}
+                  className="mt-5 w-full bg-gray-900 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-700 transition-colors"
+                >
+                  Back to orders
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+                  <AlertTriangle size={22} className="text-amber-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 text-center">Release escrowed funds?</h3>
+                <p className="mt-1 text-sm text-gray-500 text-center">
+                  This will transfer{' '}
+                  <span className="font-bold text-gray-900">₦{order.amount_ngn.toLocaleString()}</span>{' '}
+                  to <span className="font-bold text-gray-900">{order.supplier_name}</span>.
+                </p>
+                <div className="mt-3 flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
+                  <XCircle size={14} className="text-red-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-red-700">
+                    This action is <strong>irreversible</strong>. Only release if you have received
+                    and verified the correct goods.
+                  </p>
+                </div>
+                {releaseError && (
+                  <p className="mt-2 text-xs text-red-600 text-center">{releaseError.message}</p>
+                )}
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setShowReleaseModal(false)}
+                    disabled={isReleasing}
+                    className="py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRelease}
+                    disabled={isReleasing}
+                    className="py-2.5 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isReleasing ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Releasing...</>
+                    ) : (
+                      <><CheckCircle2 size={14} /> Release funds</>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

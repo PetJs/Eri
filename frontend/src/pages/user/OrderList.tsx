@@ -47,7 +47,7 @@ export default function OrderList() {
     status: statusLabel(o.status),
     rawStatus: o.status,
     date: new Date(o.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-    nafdac: '—',
+    nafdac: o.expected_nafdac ?? '—',
   }))
 
   const demoRows = DEMO_ORDERS.filter((o) => !storedIds.has(o.id)).map((o) => ({

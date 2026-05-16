@@ -244,12 +244,15 @@ function ResultView({ result, orderId }: { result: VerifyDeliveryResponse; order
       <div className="bg-white border border-gray-200 rounded-xl p-5">
         {isGreen ? (
           <>
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Release escrowed funds</h3>
+            <h3 className="text-sm font-semibold text-gray-800 mb-1">Release escrowed funds</h3>
+            <p className="text-xs text-gray-400 mb-3">
+              AI confirmed the delivery matches your order. A confirmation step is shown before funds move.
+            </p>
             <button
               onClick={() => navigate(`/orders/${orderId}`)}
-              className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-3 rounded-xl text-sm font-semibold hover:bg-gray-700 transition-colors"
+              className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
             >
-              <CheckCircle2 size={15} /> Go to order to release funds
+              <CheckCircle2 size={15} /> Go to order → Release funds
             </button>
           </>
         ) : (
@@ -257,27 +260,44 @@ function ResultView({ result, orderId }: { result: VerifyDeliveryResponse; order
             <div className="flex items-start gap-3 mb-4">
               <Shield size={16} className="text-green-500 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-gray-900">Funds protected</p>
+                <p className="text-sm font-semibold text-gray-900">Funds are protected</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Your escrow balance is safe. The Release Funds button is disabled until issues are resolved.
+                  Your escrow balance is safe. The AI flagged issues — release is blocked until you decide.
                 </p>
               </div>
             </div>
-            <button disabled className="w-full py-2.5 bg-gray-100 text-gray-400 rounded-lg text-sm font-semibold cursor-not-allowed flex items-center justify-center gap-2 mb-3">
+
+            <button
+              disabled
+              className="w-full py-2.5 bg-gray-100 text-gray-400 rounded-lg text-sm font-semibold cursor-not-allowed flex items-center justify-center gap-2 mb-3"
+            >
               <XCircle size={14} /> Release blocked — verification failed
             </button>
-            <div className="grid grid-cols-2 gap-3">
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <button
                 onClick={() => navigate(`/orders/${orderId}`)}
                 className="py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
               >
-                Open dispute with supplier
+                Open dispute
               </button>
               <button
                 onClick={() => navigate(`/orders/${orderId}`)}
                 className="py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
               >
-                <ArrowRight size={14} /> Refund my escrow
+                <ArrowRight size={14} /> Request refund
+              </button>
+            </div>
+
+            <div className="border-t border-gray-100 pt-3">
+              <p className="text-[11px] text-gray-400 mb-1.5">
+                If you inspected the goods and trust the supplier, you can override the AI decision.
+              </p>
+              <button
+                onClick={() => navigate(`/orders/${orderId}`)}
+                className="w-full py-2 border border-amber-300 text-amber-700 bg-amber-50 rounded-lg text-xs font-semibold hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <AlertTriangle size={12} /> Override and release anyway
               </button>
             </div>
           </>
