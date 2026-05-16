@@ -9,6 +9,7 @@ import {
   Star,
   BarChart2,
 } from 'lucide-react'
+import { getStoredOrders, getStoredSuppliers } from '../../lib/storage'
 
 const orders = [
   { id: 'ORD-882', supplier: 'MedTrust Nigeria', amount: '₦1.2M', status: 'RELEASED', refId: 'SQ-48891-28' },
@@ -55,15 +56,33 @@ const chartBars = [
   { month: 'JUL', h: 85, active: true },
 ]
 
+function formatNgn(ngn: number): string {
+  if (ngn >= 1_000_000) return `₦${(ngn / 1_000_000).toFixed(1)}M`
+  if (ngn >= 1_000) return `₦${(ngn / 1_000).toFixed(0)}K`
+  return `₦${ngn.toLocaleString()}`
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate()
+
+  const storedOrders = getStoredOrders()
+  const escrowOrders = storedOrders.filter(
+    (o) => o.status === 'funded' || o.status === 'delivered_pending',
+  )
+  const escrowTotal = escrowOrders.reduce((sum, o) => sum + o.amount_ngn, 0)
+  const escrowCount = escrowOrders.length
+
+  const verifiedSuppliers = getStoredSuppliers()
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Good afternoon, Adaeze</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Thursday, 14 May 2026 · 3 active orders</p>
+        <p className="text-sm text-gray-500 mt-0.5">
+          {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          {escrowCount > 0 && ` · ${escrowCount} active order${escrowCount !== 1 ? 's' : ''}`}
+        </p>
       </div>
 
       {/* Stat cards */}
@@ -71,15 +90,15 @@ export default function DashboardPage() {
         {[
           {
             label: 'ACTIVE ESCROW',
-            value: '3',
-            sub: '₦4.2M held',
+            value: escrowCount > 0 ? String(escrowCount) : '0',
+            sub: escrowCount > 0 ? `${formatNgn(escrowTotal)} held` : 'No active escrow',
             icon: BarChart2,
             color: 'text-blue-600',
             bg: 'bg-blue-50',
           },
           {
-            label: 'SUPPLIERS QUALIFIED',
-            value: '12',
+            label: 'SUPPLIERS VERIFIED',
+            value: verifiedSuppliers.length > 0 ? String(verifiedSuppliers.length) : '0',
             sub: (
               <span className="flex items-center gap-0.5">
                 {[...Array(5)].map((_, i) => (
@@ -93,8 +112,12 @@ export default function DashboardPage() {
             bg: 'bg-green-50',
           },
           {
-            label: 'FREE MONTH',
-            value: '₦18.4M',
+            label: 'RELEASED THIS MONTH',
+            value: formatNgn(
+              storedOrders
+                .filter((o) => o.status === 'released')
+                .reduce((s, o) => s + o.amount_ngn, 0),
+            ),
             sub: 'returned to suppliers',
             icon: TrendingUp,
             color: 'text-purple-600',
@@ -102,8 +125,8 @@ export default function DashboardPage() {
           },
           {
             label: 'DISPUTES',
-            value: '0',
-            sub: 'all clear',
+            value: String(storedOrders.filter((o) => o.status === 'disputed').length),
+            sub: storedOrders.filter((o) => o.status === 'disputed').length === 0 ? 'all clear' : 'needs review',
             icon: AlertTriangle,
             color: 'text-gray-400',
             bg: 'bg-gray-100',

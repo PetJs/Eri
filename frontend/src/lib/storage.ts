@@ -49,6 +49,12 @@ export function getStoredOrders(): StoredOrder[] {
   }
 }
 
+export function updateStoredOrderStatus(id: string, status: string) {
+  const orders = getStoredOrders()
+  const updated = orders.map((o) => (o.id === id ? { ...o, status } : o))
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(updated))
+}
+
 // ── Persisted verified suppliers ─────────────────────────────────────────────
 
 const SUPPLIERS_KEY = 'eri_suppliers'
