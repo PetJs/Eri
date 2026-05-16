@@ -12,7 +12,7 @@ from google.genai import types
 logger = logging.getLogger(__name__)
 
 _MODEL = "gemini-2.5-flash"
-_CACHED_MODEL = "gemini-2.5-flash-001"  # version pin required for context caching
+_CACHED_MODEL = "gemini-2.5-flash-preview-05-20"  # version pin required for context caching
 _CACHE_TTL = "3600s"
 
 RegistryType = Literal["nafdac", "son", "mancap", "none"]
@@ -287,10 +287,10 @@ class LLMClient:
             return handle
         except Exception as exc:
             msg = str(exc).lower()
-            if any(x in msg for x in ("minimum", "32768", "32,768", "token")):
-                logger.debug(
-                    "System prompt below Gemini cache minimum — using inline prompt for %s",
-                    display_name,
+            if any(x in msg for x in ("minimum", "32768", "32,768", "token", "not found", "not_found", "404", "unsupported")):
+                logger.warning(
+                    "Gemini cache unavailable for %s (%s) — falling back to inline prompt",
+                    display_name, exc,
                 )
                 return None
             raise

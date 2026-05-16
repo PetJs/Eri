@@ -24,6 +24,7 @@ import type {
   InvoiceLineItem,
   InvoiceSupplier,
   OrderResponse,
+  SimulatePaymentResponse,
 } from '../../api/types'
 import { saveOrder, updateStoredOrderStatus } from '../../lib/storage'
 
@@ -388,7 +389,7 @@ function ReviewForm({
         },
       },
       {
-        onSuccess: (order) => {
+        onSuccess: (order: OrderResponse) => {
           saveOrder(order, {
             expected_nafdac: items[0]?.nafdac_registration || undefined,
             expected_manufacturer: items[0]?.manufacturer || undefined,
@@ -647,7 +648,7 @@ function FundEscrow({
 
   function handleSimulateTransfer() {
     simulate(undefined, {
-      onSuccess: (result) => {
+      onSuccess: (result: SimulatePaymentResponse) => {
         updateStoredOrderStatus(order.id, 'funded')
         setSimMessage(result.message)
         setShowSimModal(true)
@@ -914,7 +915,7 @@ export default function OrderNew() {
   function handleFile(file: File) {
     setFilename(file.name)
     extractInvoice(file, {
-      onSuccess: (data) => {
+      onSuccess: (data: ExtractInvoiceResponse) => {
         setExtraction(data)
         setPhase('review')
       },

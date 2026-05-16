@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, AlertTriangle, Circle, Upload, ArrowRight, ChevronDown } from 'lucide-react'
 import { useVerifySupplier } from '../../api/verify'
-import type { VerificationCheck } from '../../api/types'
+import type { VerificationCheck, VerifySupplierResponse } from '../../api/types'
 import { saveSupplier } from '../../lib/storage'
 
 type CheckState = 'pending' | 'loading' | 'pass' | 'warn' | 'fail'
@@ -140,7 +140,7 @@ export default function VerifySupplier() {
       expected_manufacturer: form.manufacturer || undefined,
       expected_product: form.product || undefined,
     }, {
-      onSuccess: (result) => {
+      onSuccess: (result: VerifySupplierResponse) => {
         saveSupplier({
           name: form.company, rc: form.rc, bank: form.bank,
           account: form.account, score: result.score,
@@ -357,7 +357,7 @@ export default function VerifySupplier() {
                 <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-lg">
                   <p className="text-xs font-semibold text-amber-700 mb-1">Concerns flagged</p>
                   <ul className="space-y-1">
-                    {data.raw_concerns.map((c, i) => (
+                    {data.raw_concerns.map((c: string, i: number) => (
                       <li key={i} className="text-xs text-amber-600 flex items-start gap-1.5">
                         <AlertTriangle size={11} className="mt-0.5 flex-shrink-0" /> {c}
                       </li>
