@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     squad_webhook_secret: str = ""
 
     # -- LLM --------------------------------------------------------------
-    gemini_api_key: str = "AIzaSyCWgMuf0sLqn5LbStrc5z_ALPAxXaxoocs"  # used by app/integrations/llm.py
+    gemini_api_key: str = ""  # set GEMINI_API_KEY in .env.local — never hardcode here
 
     # -- Pydantic settings config ----------------------------------------
     model_config = SettingsConfigDict(
